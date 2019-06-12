@@ -1,0 +1,172 @@
+#ifndef _EDLOOP_H_
+#define _EDLOOP_H_
+
+#include "edbase.h"
+#include "edobject.h"
+#include "list.h"
+
+/*****************************************************************************/
+
+typedef struct edloop       edloop;
+typedef struct edev_source  edev_source;
+typedef struct edev_process edev_process;
+typedef struct edev_oneshot edev_oneshot;
+typedef struct edev_timeout edev_timeout;
+typedef struct edev_ioevent edev_ioevent;
+
+/*****************************************************************************/
+
+typedef void (* edev_process_cb)(edev_process *, int rtn);
+typedef void (* edev_oneshot_cb)(edev_oneshot *);
+typedef void (* edev_timeout_cb)(edev_timeout *);
+typedef void (* edev_ioevent_cb)(edev_ioevent *, int fd, unsigned int revents);
+
+/*****************************************************************************/
+
+typedef union {
+	void *   ptr;
+	uint8_t  u8;
+	uint16_t u16;
+	uint32_t u32;
+	int8_t   s8;
+	int16_t  s16;
+	int32_t  s32;
+} edloop_cus_data;
+
+typedef enum {
+	EDEV_PROCESS_TYPE = 0,
+	EDEV_ONESHOT_TYPE = 1,
+	EDEV_TIMEOUT_TYPE = 2,
+	EDEV_IOEVENT_TYPE = 3,
+	EDEV_RECLAIM_TYPE = 4,
+#define EDEV_TYPE_MAX   5
+} edloop_evt_type;
+
+struct edloop {
+	edobject          object;
+    int               epfd;
+
+    struct list_head  source_list[EDEV_TYPE_MAX];
+	pthread_mutex_t   source_mutex;
+
+	int               access;
+	pthread_mutex_t   access_mutex;
+	pthread_cond_t    access_cond;
+
+    edev_ioevent *    waker_ev;
+    int               waker_fd;
+    int               status;
+    bool              cancel;
+	edloop_cus_data   data;
+};
+
+struct edev_source {
+	edobject          object;
+	struct list_head  node;
+	bool              attach;
+	bool              reclaim;
+	edloop *          loop;
+	edloop_evt_type   type;
+};
+
+struct edev_process {
+	edev_source       source;
+	pid_t             pid;
+	edev_process_cb   done;
+	edloop_cus_data   data;
+};
+
+struct edev_oneshot {
+	edev_source       source;
+	bool              action;
+	edev_oneshot_cb   done;
+	edloop_cus_data   data;
+};
+
+struct edev_timeout {
+	edev_source       source;
+	struct timeval    time;
+	edev_timeout_cb   done;
+	edloop_cus_data   data;
+};
+
+struct edev_ioevent {
+	edev_source       source;
+	int               fd;
+	unsigned int      flags;
+	unsigned int      revents;
+	bool              err;
+	bool              eof;
+	edev_ioevent_cb   handle;
+	edloop_cus_data   data;
+};
+
+/*****************************************************************************/
+
+typedef enum {
+	EDIO_READ     = (1 << 0),
+	EDIO_WRITE    = (1 << 1),
+	EDIO_EOF      = (1 << 2),
+	EDIO_ERR      = (1 << 3),
+	EDIO_NONBLOCK = (1 << 4), /* Set O_NONBLOCK */
+	EDIO_CLOEXEC  = (1 << 5), /* Set FD_CLOEXEC */
+	EDIO_CLOAUTO  = (1 << 6), /* Close FD when object finalize */
+} edio_event_flag_e;
+
+/*****************************************************************************/
+
+_EDOBJ_EXTEND_METHOD_MACRO_(edloop, edloop);
+void     edloop_detach(edloop *, edev_source *);
+int      edloop_attach(edloop *, edev_source *);
+void     edloop_cancel(edloop *);
+void     edloop_wakeup(edloop *);
+void     edloop_done(edloop *);
+int      edloop_loop(edloop *);
+edloop * edloop_default(void);
+edloop * edloop_new(void);
+
+/*****************************************************************************/
+_EDOBJ_EXTEND_METHOD_MACRO_(edev_source, edev_source);
+void edev_source_base_init(edev_source *, edloop *, edloop_evt_type, edobject_finalize_cb);
+#define _EDEV_SOURCE_EXTEND_METHOD_MACRO_(TYPE, NAME) \
+	_EDOBJ_EXTEND_METHOD_MACRO_(TYPE, NAME); \
+	static inline edev_source * NAME##_to_source(TYPE * o) { return (edev_source *) o; } \
+	static inline edloop * NAME##_to_loop(TYPE * o) { return ((edev_source *) o)->loop; }
+
+/*****************************************************************************/
+
+_EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_process, edev_process);
+int            edev_process_attach(edev_process *, pid_t pid);
+void           edev_process_detach(edev_process *);
+edev_process * edev_process_new(edloop *, edev_process_cb);
+
+/*****************************************************************************/
+
+_EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_oneshot, edev_oneshot);
+int            edev_oneshot_action(edev_oneshot *);
+int            edev_oneshot_attach(edev_oneshot *);
+void           edev_oneshot_detach(edev_oneshot *);
+edev_oneshot * edev_oneshot_new(edloop *, edev_oneshot_cb);
+
+/*****************************************************************************/
+
+_EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_timeout, edev_timeout);
+int            edev_timeout_get_remain(edev_timeout *);
+int            edev_timeout_start(edev_timeout *, int msec);
+void           edev_timeout_stop(edev_timeout *);
+edev_timeout * edev_timeout_new(edloop *, edev_timeout_cb);
+
+/*****************************************************************************/
+
+_EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_ioevent, edev_ioevent);
+int            edev_ioevent_attach(edev_ioevent *, int fd, unsigned int flags);
+void           edev_ioevent_detach(edev_ioevent *);
+edev_ioevent * edev_ioevent_new(edloop *, edev_ioevent_cb);
+
+/*****************************************************************************/
+
+void edutil_time_curr(struct timeval * tv);
+void edutil_time_next(struct timeval * tv, int msec);
+int  edutil_time_diff(struct timeval * t1, struct timeval * t2);
+
+#endif
