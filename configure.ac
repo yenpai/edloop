@@ -1,6 +1,6 @@
 AC_PREREQ([2.59])
 AC_INIT([edloop], [1.0.0], [robin.chen@wondalink.com])
-AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_SRCDIR([src/edloop.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIRS([m4])
@@ -12,7 +12,7 @@ AC_SUBST([LIBEDLOOP_VERSION_INFO])
 
 # Checks for programs.
 AC_PROG_CC
-AM_PROG_AR
+#AM_PROG_AR
 AC_PROG_LIBTOOL
 LT_INIT
 
