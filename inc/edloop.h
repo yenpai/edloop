@@ -42,24 +42,6 @@ typedef enum {
 #define EDEV_TYPE_MAX   5
 } edloop_evt_type;
 
-struct edloop {
-	edobject          object;
-    int               epfd;
-
-    struct list_head  source_list[EDEV_TYPE_MAX];
-	pthread_mutex_t   source_mutex;
-
-	int               access;
-	pthread_mutex_t   access_mutex;
-	pthread_cond_t    access_cond;
-
-    edev_ioevent *    waker_ev;
-    int               waker_fd;
-    int               status;
-    bool              cancel;
-	edloop_cus_data   data;
-};
-
 struct edev_source {
 	edobject          object;
 	struct list_head  node;

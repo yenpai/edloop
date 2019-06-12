@@ -21,6 +21,26 @@
 
 /*****************************************************************************/
 
+struct edloop {
+	edobject          object;
+    int               epfd;
+
+    struct list_head  source_list[EDEV_TYPE_MAX];
+	pthread_mutex_t   source_mutex;
+
+	int               access;
+	pthread_mutex_t   access_mutex;
+	pthread_cond_t    access_cond;
+
+    edev_ioevent *    waker_ev;
+    int               waker_fd;
+    int               status;
+    bool              cancel;
+	edloop_cus_data   data;
+};
+
+/*****************************************************************************/
+
 static edloop * global_loop_instance = NULL;
 static bool     global_sigchld_exist = false;
 
