@@ -1,28 +1,23 @@
-#                                               -*- Autoconf -*-
-# Process this file with autoconf to produce a configure script.
-
 AC_PREREQ([2.59])
-AC_INIT([edloop], [1.0.0])
+AC_INIT([edloop], [1.0.0], [robin.chen@wondalink.com])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_SRCDIR([src/edloop.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIRS([m4])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES])
 
 # Libtool shared library interface versions
 LIBEDLOOP_VERSION_INFO="1:0:0"
 AC_SUBST([LIBEDLOOP_VERSION_INFO])
 
-# Checks for features.
-AC_ARG_ENABLE([edev_mqueue],
-  AS_HELP_STRING([--disable-edev-mqueue], [disable the edev_mqueue component]),
-  [build_edev_mqueue="$enableval"], [build_edev_mqueue="yes"])
-AM_CONDITIONAL([BUILD_EDEV_MQUEUE], [test x$build_edev_mqueue = xyes])
-
-AS_IF([test "x$enable_edev_mqueue" != "xno"], [AC_DEFINE([HAVE_EDEV_MQUEUE], [1], [Enable edev_mqueue])])
-
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_AR
+AC_PROG_LIBTOOL
+LT_INIT
+
+# Build with -Wall.
+CFLAGS="$CFLAGS -Wall"
 
 # Checks for libraries.
 
@@ -43,9 +38,18 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([clock_gettime memset])
+AC_CHECK_FUNCS([epoll_create])
+AC_CHECK_FUNCS([epoll_create1])
 
-# Use libtool
-LT_INIT
+# Checks for features support.
+AC_ARG_ENABLE([edev_mqueue],
+  AS_HELP_STRING([--disable-edev-mqueue], [Disable the edev_mqueue component]))
+
+# Conditionals for features support
+AM_CONDITIONAL([BUILD_EDEV_MQUEUE], [test "x$enable_edev_mqueue" != "xno"])
+
+# Defines for features support
+AS_IF([test "x$enable_edev_mqueue" != "xno"], [AC_DEFINE([HAVE_EDEV_MQUEUE], [1], [Enable edev_mqueue])])
 
 # Makefile
 AC_CONFIG_FILES([Makefile src/Makefile])

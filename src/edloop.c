@@ -574,7 +574,7 @@ void edloop_detach(edloop * loop, edev_source * source)
 
 int edloop_attach(edloop * loop, edev_source * source)
 {
-	int ret;
+	int ret = -1;
 
 	if (source->loop == NULL)
 		source->loop = loop;
