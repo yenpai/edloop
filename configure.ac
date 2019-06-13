@@ -53,9 +53,13 @@ AC_CHECK_FUNCS([eventfd])
 LIBS="${LIBS} -pthread"
 
 # Checks for edev_mqueue support.
-AC_ARG_ENABLE([edev_mqueue], AS_HELP_STRING([--enable-edev-mqueue], [enable edev_mqueue support]))
+AC_ARG_ENABLE([edev_mqueue], AS_HELP_STRING([--enable-edev-mqueue], [enable edev_mqueue support [default=no]]))
 AM_CONDITIONAL([BUILD_EDEV_MQUEUE], [test "$enable_edev_mqueue" = "yes"])
 AS_IF([test "$enable_edev_mqueue" = "yes"], [AC_DEFINE([HAVE_EDEV_MQUEUE], [1], [Define to 1 if edev_mqueue support])])
+
+# Checks for tests build
+AC_ARG_ENABLE([tests_build], AS_HELP_STRING([--enable-tests-build], [build tests applications [default=no]]))
+AM_CONDITIONAL([BUILD_TESTS], [test "$enable_tests_build" = "yes"])
 
 # Makefile
 AC_CONFIG_FILES([libedloop.pc Makefile src/Makefile inc/Makefile tests/Makefile])
