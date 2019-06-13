@@ -6,11 +6,16 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
 # AM_SILENT_RULES request by automake 1.11.  [no] defaults V=1
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
-# Libtool shared library interface versions
-LIBEDLOOP_VERSION_INFO="1:0:0"
-AC_SUBST([LIBEDLOOP_VERSION_INFO])
+# Libtool shared library versions
+AC_SUBST([LIBEDLOOP_VERSION_INFO], [1:0:0])
+
+# Silence warning: ar: 'u' modifier ignored since 'D' is the default
+AC_SUBST(AR_FLAGS, [cr])
+
+# Use GNU extensions
+AC_GNU_SOURCE
 
 # Checks for programs.
 AC_PROG_CC
