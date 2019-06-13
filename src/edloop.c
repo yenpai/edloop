@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
 #include <sys/wait.h>
 #include "edloop.h"
 
@@ -32,8 +33,7 @@ struct edloop {
 	pthread_mutex_t   access_mutex;
 	pthread_cond_t    access_cond;
 
-    edev_ioevent *    waker_ev;
-    int               waker_fd;
+    edev_ioevent *    waker;
     int               status;
     bool              cancel;
 	edloop_cus_data   data;
@@ -106,42 +106,52 @@ static void edloop_signal_setup(bool add)
 
 /*****************************************************************************/
 
-static void edloop_waker_consume(edev_ioevent * UNUSED(io), int fd, unsigned int UNUSED(revents))
+static void edloop_waker_consume(edev_ioevent * UNUSED(waker), int fd, unsigned int UNUSED(revents))
 {
-	char buf[4];
-	while (read(fd, buf, sizeof(buf)) > 0) ;
+	uint64_t count;
+	while (read(fd, &count, sizeof(uint64_t)) > 0) ;
+}
+
+static void edloop_waker_update(edev_ioevent * waker)
+{
+	uint64_t count;
+	int fd;
+
+	if ((fd = edev_ioevent_get_unix_fd(waker)) >= 0)
+	{
+		count = 1;
+		while (write(fd, &count, sizeof(uint64_t)) < 0)
+		{
+			if (errno != EINTR)
+			{
+				break;
+			}
+		}
+	}
 }
 
 static int edloop_waker_init(edloop * loop)
 {
 	edev_ioevent * io;
-	int fds[2];
+	int fd;
 
-	if (pipe(fds) < 0)
+	if ((fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK)) < 0)
 		return -1;
-
-	fcntl(fds[0], F_SETFD, fcntl(fds[0], F_GETFD) | FD_CLOEXEC);
-	fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
-	fcntl(fds[1], F_SETFD, fcntl(fds[1], F_GETFD) | FD_CLOEXEC);
-	fcntl(fds[1], F_SETFL, fcntl(fds[1], F_GETFL) | O_NONBLOCK);
 
 	if ((io = edev_ioevent_new(loop, edloop_waker_consume)) == NULL)
 	{
-		close(fds[0]);
-		close(fds[1]);
+		close(fd);
 		return -2;
 	}
 
-	if (edev_ioevent_attach(io, fds[0], EDIO_READ | EDIO_CLOAUTO) < 0)
+	if (edev_ioevent_attach(io, fd, EDIO_READ | EDIO_CLOAUTO) < 0)
 	{
-		close(fds[0]);
-		close(fds[1]);
+		close(fd);
 		edev_ioevent_unref(io);
 		return -3;
 	}
 
-	loop->waker_fd = fds[1];
-	loop->waker_ev = io;
+	loop->waker = io;
 	return 0;
 }
 
@@ -548,16 +558,10 @@ static void edloop_finalize(edobject * obj)
 	for (type = 0 ; type < EDEV_TYPE_MAX ; type++)
 		edloop_source_remove_all(loop, type);
 
-	if (loop->waker_ev)
+	if (loop->waker)
 	{
-		edev_ioevent_unref(loop->waker_ev);
-		loop->waker_ev = NULL;
-	}
-
-	if (loop->waker_fd >= 0)
-	{
-		close(loop->waker_fd);
-		loop->waker_fd = -1;
+		edev_ioevent_unref(loop->waker);
+		loop->waker = NULL;
 	}
 
 	if (loop->epfd > 0)
@@ -642,16 +646,8 @@ void edloop_cancel(edloop * loop)
 
 void edloop_wakeup(edloop * loop)
 {
-	if (loop && loop->status > 0)
-	{
-		while (write(loop->waker_fd, "w", 1) < 0)
-		{
-			if (errno != EINTR)
-			{
-				break;
-			}
-		}
-	}
+	if (loop && loop->waker && loop->status > 0)
+		edloop_waker_update(loop->waker);
 }
 
 void edloop_done(edloop * loop)

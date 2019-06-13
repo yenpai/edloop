@@ -47,6 +47,7 @@ AC_FUNC_MALLOC
 AC_CHECK_FUNCS([clock_gettime memset])
 AC_CHECK_FUNCS([epoll_create])
 AC_CHECK_FUNCS([epoll_create1])
+AC_CHECK_FUNCS([eventfd])
 
 # Checks for edev_mqueue support.
 AC_ARG_ENABLE([edev_mqueue], AS_HELP_STRING([--enable-edev-mqueue], [enable edev_mqueue support]))
