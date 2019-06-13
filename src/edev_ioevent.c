@@ -4,11 +4,16 @@ static void edev_ioevent_finalize(edobject * obj)
 {
 	edev_ioevent * io = container_of(obj, edev_ioevent, source.object);
 
-	if ((io->flags & EDIO_CLOAUTO) && io->fd > 0)
+	if ((io->flags & EDIO_CLOAUTO) && io->fd >= 0)
 	{
 		close(io->fd);
 		io->fd = -1;
 	}
+}
+
+int edev_ioevent_get_unix_fd(edev_ioevent * io)
+{
+	return io->fd;
 }
 
 int edev_ioevent_attach(edev_ioevent * io, int fd, unsigned int flags)
