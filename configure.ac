@@ -54,5 +54,5 @@ AM_CONDITIONAL([BUILD_EDEV_MQUEUE], [test "$enable_edev_mqueue" = "yes"])
 AS_IF([test "$enable_edev_mqueue" = "yes"], [AC_DEFINE([HAVE_EDEV_MQUEUE], [1], [Define to 1 if edev_mqueue support])])
 
 # Makefile
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([libedloop.pc Makefile src/Makefile inc/Makefile])
 AC_OUTPUT

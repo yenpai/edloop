@@ -36,6 +36,9 @@ Makefile
 # backup files
 *~
 
+# pkgconfig
+lib*.pc
+
 # compiled files
 *.o
 *.lo
