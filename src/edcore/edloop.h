@@ -31,7 +31,7 @@ typedef union {
 	int8_t   s8;
 	int16_t  s16;
 	int32_t  s32;
-} edloop_cus_data;
+} edcustom_data;
 
 typedef enum {
 	EDEV_PROCESS_TYPE = 0,
@@ -40,7 +40,7 @@ typedef enum {
 	EDEV_IOEVENT_TYPE = 3,
 	EDEV_RECLAIM_TYPE = 4,
 #define EDEV_TYPE_MAX   5
-} edloop_evt_type;
+} edev_source_type;
 
 struct edev_source {
 	edobject          object;
@@ -48,28 +48,28 @@ struct edev_source {
 	bool              attach;
 	bool              reclaim;
 	edloop *          loop;
-	edloop_evt_type   type;
+	edev_source_type  type;
 };
 
 struct edev_process {
 	edev_source       source;
 	pid_t             pid;
 	edev_process_cb   done;
-	edloop_cus_data   data;
+	edcustom_data  cdata;
 };
 
 struct edev_oneshot {
 	edev_source       source;
 	bool              action;
 	edev_oneshot_cb   done;
-	edloop_cus_data   data;
+	edcustom_data  cdata;
 };
 
 struct edev_timeout {
 	edev_source       source;
 	struct timeval    time;
 	edev_timeout_cb   done;
-	edloop_cus_data   data;
+	edcustom_data  cdata;
 };
 
 struct edev_ioevent {
@@ -80,7 +80,7 @@ struct edev_ioevent {
 	bool              err;
 	bool              eof;
 	edev_ioevent_cb   handle;
-	edloop_cus_data   data;
+	edcustom_data  cdata;
 };
 
 /*****************************************************************************/
@@ -93,25 +93,25 @@ typedef enum {
 	EDIO_NONBLOCK = (1 << 4), /* Set O_NONBLOCK */
 	EDIO_CLOEXEC  = (1 << 5), /* Set FD_CLOEXEC */
 	EDIO_CLOAUTO  = (1 << 6), /* Close FD when object finalize */
-} edio_event_flag_e;
+} edev_ioevent_flag;
 
 /*****************************************************************************/
 
-_EDOBJ_EXTEND_METHOD_MACRO_(edloop, edloop);
-void     edloop_detach(edloop *, edev_source *);
-int      edloop_attach(edloop *, edev_source *);
-void     edloop_cancel(edloop *);
-void     edloop_wakeup(edloop *);
-void     edloop_done(edloop *);
-int      edloop_loop(edloop *);
+_EDOBJECT_EXTEND_METHOD_MACRO_(edloop, edloop);
+void        edloop_detach(edloop *, edev_source *);
+int         edloop_attach(edloop *, edev_source *);
+void        edloop_cancel(edloop *);
+void        edloop_wakeup(edloop *);
+void        edloop_done(edloop *);
+int         edloop_loop(edloop *);
 edloop * edloop_default(void);
 edloop * edloop_new(void);
 
 /*****************************************************************************/
-_EDOBJ_EXTEND_METHOD_MACRO_(edev_source, edev_source);
-void edev_source_base_init(edev_source *, edloop *, edloop_evt_type, edobject_finalize_cb);
+_EDOBJECT_EXTEND_METHOD_MACRO_(edev_source, edev_source);
+void edev_source_base_init(edev_source *, edloop *, edev_source_type, edobject_finalize_cb);
 #define _EDEV_SOURCE_EXTEND_METHOD_MACRO_(TYPE, NAME) \
-	_EDOBJ_EXTEND_METHOD_MACRO_(TYPE, NAME); \
+	_EDOBJECT_EXTEND_METHOD_MACRO_(TYPE, NAME); \
 	static inline edev_source * NAME##_to_source(TYPE * o) { return (edev_source *) o; } \
 	static inline edloop * NAME##_to_loop(TYPE * o) { return ((edev_source *) o)->loop; }
 

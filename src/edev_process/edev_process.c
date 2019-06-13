@@ -35,6 +35,7 @@ edev_process * edev_process_new(edloop * loop, edev_process_cb done)
 
 	if (loop == NULL)
 		return NULL;
+
 	if ((process = malloc(sizeof(*process))) == NULL)
 		return NULL;
 

@@ -45,7 +45,7 @@ flags = [
 '-std=gnu99',
 '-x', 'c',
 '-I', '.',
-'-I', '../inc',
+'-I', './edcore',
 '-isystem', '/usr/include',
 ]
 

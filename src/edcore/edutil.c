@@ -1,4 +1,4 @@
-#include "edloop.h"
+#include "edbase.h"
 
 void edutil_time_curr(struct timeval * tv)
 {

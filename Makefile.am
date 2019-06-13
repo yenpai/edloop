@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign 1.9
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = inc src
+SUBDIRS = src
 
 if BUILD_TESTS
 SUBDIRS += tests

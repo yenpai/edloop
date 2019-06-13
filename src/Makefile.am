@@ -1,17 +1,16 @@
-lib_LTLIBRARIES = libedloop.la
+SUBDIRS = edcore edev_process edev_oneshot edev_timeout edev_ioevent
 
-libedloop_la_SOURCES = edobject.c     \
-					   edutil.c       \
-					   edloop.c       \
-					   edev_process.c \
-					   edev_oneshot.c \
-					   edev_timeout.c \
-					   edev_ioevent.c
-
-libedloop_la_CFLAGS  = -include $(top_builddir)/config.h -I$(top_srcdir)/inc
+lib_LTLIBRARIES      = libedloop.la
+libedloop_la_SOURCES = 
+libedloop_la_CFLAGS  =
 libedloop_la_LDFLAGS = -version-info $(LIBEDLOOP_VERSION_INFO)
-libedloop_la_LIBADD  =
+libedloop_la_LIBADD  = edcore/libedcore.la \
+					   edev_process/libedev_process.la \
+					   edev_oneshot/libedev_oneshot.la \
+					   edev_timeout/libedev_timeout.la \
+					   edev_ioevent/libedev_ioevent.la
 
 if BUILD_EDEV_MQUEUE
-libedloop_la_SOURCES += edev_mqueue.c
+SUBDIRS += edev_mqueue
+libedloop_la_LIBADD  += edev_mqueue/libedev_mqueue.la
 endif

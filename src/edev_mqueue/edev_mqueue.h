@@ -3,7 +3,7 @@
 
 #include "edloop.h"
 
-typedef struct  edev_mqueue edev_mqueue;
+typedef struct edev_mqueue edev_mqueue;
 typedef struct {
 	uint32_t type;
 	uint32_t length;

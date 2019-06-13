@@ -1,6 +1,6 @@
 #include "edloop.h"
 
-static void edev_timeout_finalize(edobject * obj)
+static void edev_timeout_finalize(edobject * UNUSED(obj))
 {
 }
 

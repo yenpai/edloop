@@ -36,7 +36,7 @@ struct edloop {
     edev_ioevent *    waker;
     int               status;
     bool              cancel;
-	edloop_cus_data   data;
+	edcustom_data  cdata;
 };
 
 /*****************************************************************************/
@@ -44,7 +44,7 @@ struct edloop {
 static edloop * global_loop_instance = NULL;
 static bool     global_sigchld_exist = false;
 
-static void edloop_signal_handler(int signo)
+static void signal_handler(int signo)
 {
 	if (signo == SIGCHLD && global_loop_instance)
 	{
@@ -53,7 +53,7 @@ static void edloop_signal_handler(int signo)
 	}
 }
 
-static void edloop_signal_install(int signo, void (*handler)(int), struct sigaction* old, bool add)
+static void signal_install(int signo, void (*handler)(int), struct sigaction* old, bool add)
 {
 	struct sigaction s;
 	struct sigaction * act = NULL;
@@ -78,7 +78,7 @@ static void edloop_signal_install(int signo, void (*handler)(int), struct sigact
 		sigaction(signo, act, NULL);
 }
 
-static void edloop_signal_ignore(int signo, bool ignore)
+static void signal_ignore(int signo, bool ignore)
 {
 	struct sigaction s;
 	void *new_handler = NULL;
@@ -97,22 +97,22 @@ static void edloop_signal_ignore(int signo, bool ignore)
 	}
 }
 
-static void edloop_signal_setup(bool add)
+static void signal_setup(bool add)
 {
 	static struct sigaction old_sigchld;
-	edloop_signal_install(SIGCHLD, edloop_signal_handler, &old_sigchld, add);
-	edloop_signal_ignore(SIGPIPE, add);
+	signal_install(SIGCHLD, signal_handler, &old_sigchld, add);
+	signal_ignore(SIGPIPE, add);
 }
 
 /*****************************************************************************/
 
-static void edloop_waker_consume(edev_ioevent * UNUSED(waker), int fd, unsigned int UNUSED(revents))
+static void waker_consume(edev_ioevent * UNUSED(waker), int fd, unsigned int UNUSED(revents))
 {
 	uint64_t count;
 	while (read(fd, &count, sizeof(uint64_t)) > 0) ;
 }
 
-static void edloop_waker_update(edev_ioevent * waker)
+static void waker_update(edev_ioevent * waker)
 {
 	uint64_t count;
 	int fd;
@@ -130,7 +130,7 @@ static void edloop_waker_update(edev_ioevent * waker)
 	}
 }
 
-static int edloop_waker_init(edloop * loop)
+static int waker_init(edloop * loop)
 {
 	edev_ioevent * io;
 	int fd;
@@ -138,7 +138,7 @@ static int edloop_waker_init(edloop * loop)
 	if ((fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK)) < 0)
 		return -1;
 
-	if ((io = edev_ioevent_new(loop, edloop_waker_consume)) == NULL)
+	if ((io = edev_ioevent_new(loop, waker_consume)) == NULL)
 	{
 		close(fd);
 		return -2;
@@ -157,7 +157,7 @@ static int edloop_waker_init(edloop * loop)
 
 /*****************************************************************************/
 
-static void edloop_reclaim_add(edev_source * source)
+static void loop_reclaim_add(edev_source * source)
 {
 	edloop * loop = source->loop;
 	struct list_head * list = &loop->source_list[EDEV_RECLAIM_TYPE];
@@ -175,7 +175,7 @@ static void edloop_reclaim_add(edev_source * source)
 
 /*****************************************************************************/
 
-static int edloop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
+static int loop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
 {
 	struct list_head * list = &loop->source_list[EDEV_ONESHOT_TYPE];
 	edev_source * source = &oneshot->source;
@@ -200,7 +200,7 @@ static int edloop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
 	return 0;
 }
 
-static void edloop_oneshot_dispatch(edloop * loop)
+static void loop_oneshot_dispatch(edloop * loop)
 {
 	struct list_head * list = &loop->source_list[EDEV_ONESHOT_TYPE];
 	struct list_head active = LIST_HEAD_INIT(active);
@@ -228,7 +228,7 @@ static void edloop_oneshot_dispatch(edloop * loop)
 		oneshot = container_of(source, edev_oneshot, source);
 
 		oneshot->action = false;
-		edloop_reclaim_add(source);
+		loop_reclaim_add(source);
 
 		if (loop->cancel == false && oneshot->done)
 			oneshot->done(oneshot);
@@ -237,7 +237,7 @@ static void edloop_oneshot_dispatch(edloop * loop)
 
 /*****************************************************************************/
 
-static int edloop_process_add(edloop * loop, edev_process * process)
+static int loop_process_add(edloop * loop, edev_process * process)
 {
 	struct list_head * list = &loop->source_list[EDEV_PROCESS_TYPE];
 	struct list_head * head = &loop->source_list[EDEV_PROCESS_TYPE];
@@ -272,7 +272,7 @@ static int edloop_process_add(edloop * loop, edev_process * process)
 	return 0;
 }
 
-static void edloop_process_dispatch(edloop * loop)
+static void loop_process_dispatch(edloop * loop)
 {
 	struct list_head * list = &loop->source_list[EDEV_PROCESS_TYPE];
 	edev_source  * source, * tmp;
@@ -314,7 +314,7 @@ static void edloop_process_dispatch(edloop * loop)
 		if (loop->cancel == false && found)
 		{
 			process = found;
-			edloop_reclaim_add(&process->source);
+			loop_reclaim_add(&process->source);
 			
 			if (process->done)
 				process->done(process, stat);
@@ -324,7 +324,7 @@ static void edloop_process_dispatch(edloop * loop)
 
 /*****************************************************************************/
 
-static void edloop_timeout_next_time(edloop * loop, int * timeout_val)
+static void loop_timeout_next_time(edloop * loop, int * timeout_val)
 {
 	struct list_head * list = &loop->source_list[EDEV_TIMEOUT_TYPE];
 	edev_timeout * timeout;
@@ -343,7 +343,7 @@ static void edloop_timeout_next_time(edloop * loop, int * timeout_val)
 	*timeout_val = (msec) < 0 ? 0 : msec ;
 }
 
-static int edloop_timeout_add(edloop * loop, edev_timeout * timeout)
+static int loop_timeout_add(edloop * loop, edev_timeout * timeout)
 {
 	struct list_head * list = &loop->source_list[EDEV_TIMEOUT_TYPE];
 	struct list_head * head = &loop->source_list[EDEV_TIMEOUT_TYPE];
@@ -375,7 +375,7 @@ static int edloop_timeout_add(edloop * loop, edev_timeout * timeout)
 	return 0;
 }
 
-static void edloop_timeout_dispatch(edloop * loop)
+static void loop_timeout_dispatch(edloop * loop)
 {
 	struct list_head * list = &loop->source_list[EDEV_TIMEOUT_TYPE];
 	struct list_head active = LIST_HEAD_INIT(active);
@@ -407,7 +407,7 @@ static void edloop_timeout_dispatch(edloop * loop)
 		source = list_first_entry(&active, edev_source, node);
 		timeout = container_of(source, edev_timeout, source);
 
-		edloop_reclaim_add(source);
+		loop_reclaim_add(source);
 
 		if (loop->cancel == false && timeout->done)
 			timeout->done(timeout);
@@ -416,7 +416,7 @@ static void edloop_timeout_dispatch(edloop * loop)
 
 /*****************************************************************************/
 
-static int edloop_ioevent_add(edloop * loop, edev_ioevent * io)
+static int loop_ioevent_add(edloop * loop, edev_ioevent * io)
 {
 	edev_source * source = edev_ioevent_to_source(io);
 	struct epoll_event event;
@@ -460,7 +460,7 @@ static int edloop_ioevent_add(edloop * loop, edev_ioevent * io)
 	return 0;
 }
 
-static void edloop_ioevent_disptach(edloop * loop)
+static void loop_ioevent_disptach(edloop * loop)
 {
 	int n, nfds, timeout_msec = -1;
 	struct epoll_event events[8];
@@ -469,7 +469,7 @@ static void edloop_ioevent_disptach(edloop * loop)
 
 	memset(events, 0, sizeof(events));
 	
-	edloop_timeout_next_time(loop, &timeout_msec);
+	loop_timeout_next_time(loop, &timeout_msec);
 	nfds = epoll_wait(loop->epfd, events, ARRAY_SIZE(events), timeout_msec);
 
 	for (n = 0; n < nfds; n++)
@@ -513,7 +513,7 @@ static void edloop_ioevent_disptach(edloop * loop)
 			continue;
 
 		if (io->err || io->eof)
-			edloop_reclaim_add(source);
+			loop_reclaim_add(source);
 
 		if (io->handle)
 			io->handle(io, io->fd, io->revents);
@@ -524,7 +524,7 @@ static void edloop_ioevent_disptach(edloop * loop)
 
 /*****************************************************************************/
 
-static void edloop_source_del(edev_source * source)
+static void loop_source_del(edev_source * source)
 {
 	edloop * loop = source->loop;
 
@@ -541,11 +541,11 @@ static void edloop_source_del(edev_source * source)
 	edev_source_unref(source);
 }
 
-static void edloop_source_remove_all(edloop * loop, edloop_evt_type type)
+static void loop_source_cleanup(edloop * loop, edev_source_type type)
 {
 	edev_source * source, * tmp;
 	list_for_each_entry_safe(source, tmp, &loop->source_list[type], node)
-		edloop_source_del(source);
+		loop_source_del(source);
 }
 
 /*****************************************************************************/
@@ -556,7 +556,7 @@ static void edloop_finalize(edobject * obj)
 	int type;
 
 	for (type = 0 ; type < EDEV_TYPE_MAX ; type++)
-		edloop_source_remove_all(loop, type);
+		loop_source_cleanup(loop, type);
 
 	if (loop->waker)
 	{
@@ -572,7 +572,7 @@ static void edloop_finalize(edobject * obj)
 
 	if (global_loop_instance == loop)
 	{
-		edloop_signal_setup(false);
+		signal_setup(false);
 		global_loop_instance = NULL;
 		global_sigchld_exist = false;
 	}
@@ -587,7 +587,7 @@ void edloop_detach(edloop * loop, edev_source * source)
 	edloop_wakeup(loop);
 
 	pthread_mutex_lock(&loop->source_mutex);
-	edloop_reclaim_add(source);
+	loop_reclaim_add(source);
 	pthread_mutex_unlock(&loop->source_mutex);
 
 	pthread_mutex_lock(&loop->access_mutex);
@@ -613,16 +613,16 @@ int edloop_attach(edloop * loop, edev_source * source)
 	switch (source->type)
 	{
 		case EDEV_PROCESS_TYPE:
-			ret = edloop_process_add(loop, (edev_process *) source);
+			ret = loop_process_add(loop, (edev_process *) source);
 			break;
 		case EDEV_ONESHOT_TYPE:
-			ret = edloop_oneshot_add(loop, (edev_oneshot *) source);
+			ret = loop_oneshot_add(loop, (edev_oneshot *) source);
 			break;
 		case EDEV_TIMEOUT_TYPE:
-			ret = edloop_timeout_add(loop, (edev_timeout *) source);
+			ret = loop_timeout_add(loop, (edev_timeout *) source);
 			break;
 		case EDEV_IOEVENT_TYPE:
-			ret = edloop_ioevent_add(loop, (edev_ioevent *) source);
+			ret = loop_ioevent_add(loop, (edev_ioevent *) source);
 			break;
 		case EDEV_RECLAIM_TYPE:
 			ret = -1;
@@ -647,14 +647,14 @@ void edloop_cancel(edloop * loop)
 void edloop_wakeup(edloop * loop)
 {
 	if (loop && loop->waker && loop->status > 0)
-		edloop_waker_update(loop->waker);
+		waker_update(loop->waker);
 }
 
 void edloop_done(edloop * loop)
 {
 	int type;
 	for (type = 0 ; type < EDEV_TYPE_MAX ; type++)
-		edloop_source_remove_all(loop, type);
+		loop_source_cleanup(loop, type);
 }
 
 int edloop_loop(edloop * loop)
@@ -680,23 +680,23 @@ int edloop_loop(edloop * loop)
 
 		/* reclaim */
 		if (!list_empty(&loop->source_list[EDEV_RECLAIM_TYPE]))
-			edloop_source_remove_all(loop, EDEV_RECLAIM_TYPE);
+			loop_source_cleanup(loop, EDEV_RECLAIM_TYPE);
 
 		/* process */
 		if (global_loop_instance == loop && global_sigchld_exist)
-			edloop_process_dispatch(loop);
+			loop_process_dispatch(loop);
 
 		/* oneshot */
 		if (!list_empty(&loop->source_list[EDEV_ONESHOT_TYPE]))
-			edloop_oneshot_dispatch(loop);
+			loop_oneshot_dispatch(loop);
 
 		/* timeout */
 		if (!list_empty(&loop->source_list[EDEV_TIMEOUT_TYPE]))
-			edloop_timeout_dispatch(loop);
+			loop_timeout_dispatch(loop);
 
 		/* ioevent_pollwait */
 		if (!list_empty(&loop->source_list[EDEV_IOEVENT_TYPE]))
-			edloop_ioevent_disptach(loop);
+			loop_ioevent_disptach(loop);
 	}
 
 	pthread_mutex_unlock(&loop->source_mutex);
@@ -719,7 +719,7 @@ edloop * edloop_default(void)
 
 	global_loop_instance = self;
 	global_sigchld_exist = false;
-	edloop_signal_setup(true);
+	signal_setup(true);
 	return self;
 }
 
@@ -731,6 +731,7 @@ edloop * edloop_new(void)
 
 	if ((loop = malloc(sizeof(*loop))) == NULL)
 		return NULL;
+
 	memset(loop, 0, sizeof(*loop));
 	edobject_base_init(&loop->object, edloop_finalize);
 
@@ -755,7 +756,7 @@ edloop * edloop_new(void)
 	pthread_mutexattr_destroy(&attr);
 	pthread_cond_init(&loop->access_cond, NULL);
 
-	if (edloop_waker_init(loop) < 0)
+	if (waker_init(loop) < 0)
 	{
 		edloop_unref(loop);
 		return NULL;
@@ -769,7 +770,7 @@ edloop * edloop_new(void)
 
 /*****************************************************************************/
 
-void edev_source_base_init(edev_source * source, edloop * loop, edloop_evt_type type, edobject_finalize_cb cb)
+void edev_source_base_init(edev_source * source, edloop * loop, edev_source_type type, edobject_finalize_cb cb)
 {
 	edobject_base_init(&source->object, cb);
 	INIT_LIST_HEAD(&source->node);

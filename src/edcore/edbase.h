@@ -1,5 +1,5 @@
-#ifndef _EDLIB_BASE_H_
-#define _EDLIB_BASE_H_
+#ifndef _EDBASE_H_
+#define _EDBASE_H_
 
 #include <stdint.h>
 #include <stdlib.h>

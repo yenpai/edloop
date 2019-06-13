@@ -43,7 +43,7 @@ void shot1_handle(edev_oneshot * shot)
 
 void ioev1_handle(edev_ioevent * io, int UNUSED(fd), unsigned int revents)
 {
-	FILE * stream = io->data.ptr;
+	FILE * stream = io->cdata.ptr;
 	char buf[256];
 
 	if (revents & EDIO_READ)
@@ -84,14 +84,14 @@ CLOSE_AND_DETACH:
 
 void timer3_done(edev_timeout * timer)
 {
-	edev_timeout * timer2 = timer->data.ptr;
+	edev_timeout * timer2 = timer->cdata.ptr;
 	printf("%s(): timeout.\n", __func__);
 
 	if (timer2)
 	{
 		edev_timeout_stop(timer2);
 		edev_timeout_unref(timer2);
-		timer->data.ptr = NULL;
+		timer->cdata.ptr = NULL;
 		printf("%s(): timer2 stop now.\n", __func__);
 	}
 	
@@ -126,7 +126,7 @@ void timer1_done(edev_timeout * timer1)
 		case 1:
 		{
 			timer2 = edev_timeout_new(loop, timer2_done);
-			timer2->data.ptr = NULL;
+			timer2->cdata.ptr = NULL;
 			edev_timeout_start(timer2, 1500);
 			printf("%s(): timer2 start now. interval[%d]\n", __func__, 1500);
 			break;
@@ -136,7 +136,7 @@ void timer1_done(edev_timeout * timer1)
 		{
 			edev_timeout * timer3;
 			timer3 = edev_timeout_new(loop, timer3_done);
-			timer3->data.ptr = edev_timeout_ref(timer2);
+			timer3->cdata.ptr = edev_timeout_ref(timer2);
 			edev_timeout_start(timer3, 3500);
 			edev_timeout_unref(timer3);
 			printf("%s(): timer3 start now. interval[%d]\n", __func__, 3500);
@@ -156,7 +156,7 @@ void timer1_done(edev_timeout * timer1)
 			FILE * stream;
 
 			ioev1 = edev_ioevent_new(loop, ioev1_handle);
-			ioev1->data.ptr = (stream = popen("ls -al /", "r"));
+			ioev1->cdata.ptr = (stream = popen("ls -al /", "r"));
 			edev_ioevent_attach(ioev1, fileno(stream), EDIO_READ | EDIO_NONBLOCK | EDIO_CLOEXEC); 
 			edev_ioevent_unref(ioev1);
 			printf("%s(): ioevent1 start now. popen(ls -al /)\n", __func__);

@@ -1,7 +1,7 @@
 AC_PREREQ([2.59])
 AC_INIT([edloop], [1.0.0], [robin.chen@wondalink.com])
 AM_INIT_AUTOMAKE
-AC_CONFIG_SRCDIR([src/edloop.c])
+AC_CONFIG_SRCDIR([src/edcore/edloop.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -62,5 +62,15 @@ AC_ARG_ENABLE([tests_build], AS_HELP_STRING([--enable-tests-build], [build tests
 AM_CONDITIONAL([BUILD_TESTS], [test "$enable_tests_build" = "yes"])
 
 # Makefile
-AC_CONFIG_FILES([libedloop.pc Makefile src/Makefile inc/Makefile tests/Makefile])
+AC_CONFIG_FILES([libedloop.pc])
+AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([src/Makefile])
+AC_CONFIG_FILES([src/edcore/Makefile])
+AC_CONFIG_FILES([src/edev_process/Makefile])
+AC_CONFIG_FILES([src/edev_oneshot/Makefile])
+AC_CONFIG_FILES([src/edev_timeout/Makefile])
+AC_CONFIG_FILES([src/edev_ioevent/Makefile])
+AC_CONFIG_FILES([src/edev_mqueue/Makefile])
+AC_CONFIG_FILES([tests/Makefile])
+
 AC_OUTPUT

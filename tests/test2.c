@@ -21,7 +21,7 @@ void mqueue_handle(edev_mqueue * mq, edev_mqueue_tlv * tlv)
 
 void timer_done(edev_timeout * timer)
 {
-	edev_mqueue * mq = timer->data.ptr;
+	edev_mqueue * mq = timer->cdata.ptr;
 	edev_mqueue_tlv mqdata;
 	static int count = 0;
 
@@ -75,7 +75,7 @@ int main(void)
 	printf("%s(): mqueue attach now.\n", __func__);
 
 	timer = edev_timeout_new(loop, timer_done);
-	timer->data.ptr = mqueue;
+	timer->cdata.ptr = mqueue;
 	edev_timeout_start(timer, 1000);
 	edev_timeout_unref(timer);
 	printf("%s(): timer start now. interval[%d]\n", __func__, 1000);

@@ -45,7 +45,8 @@ flags = [
 '-std=gnu99',
 '-x', 'c',
 '-I', '.',
-'-I', '../inc',
+'-I', '../src/edcore',
+'-I', '../src/edev_mqueue',
 '-isystem', '/usr/include',
 ]
 
