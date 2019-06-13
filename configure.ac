@@ -49,11 +49,14 @@ AC_CHECK_FUNCS([epoll_create])
 AC_CHECK_FUNCS([epoll_create1])
 AC_CHECK_FUNCS([eventfd])
 
+# Checks for pthread support.
+LIBS="${LIBS} -pthread"
+
 # Checks for edev_mqueue support.
 AC_ARG_ENABLE([edev_mqueue], AS_HELP_STRING([--enable-edev-mqueue], [enable edev_mqueue support]))
 AM_CONDITIONAL([BUILD_EDEV_MQUEUE], [test "$enable_edev_mqueue" = "yes"])
 AS_IF([test "$enable_edev_mqueue" = "yes"], [AC_DEFINE([HAVE_EDEV_MQUEUE], [1], [Define to 1 if edev_mqueue support])])
 
 # Makefile
-AC_CONFIG_FILES([libedloop.pc Makefile src/Makefile inc/Makefile])
+AC_CONFIG_FILES([libedloop.pc Makefile src/Makefile inc/Makefile tests/Makefile])
 AC_OUTPUT
