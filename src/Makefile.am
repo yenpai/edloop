@@ -14,3 +14,8 @@ if BUILD_EDEV_MQUEUE
 SUBDIRS += edev_mqueue
 libedloop_la_LIBADD  += edev_mqueue/libedev_mqueue.la
 endif
+
+if BUILD_EDEV_USBDEV
+SUBDIRS += edev_usbdev
+libedloop_la_LIBADD  += edev_usbdev/libedev_usbdev.la
+endif
