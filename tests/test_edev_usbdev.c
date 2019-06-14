@@ -13,10 +13,13 @@ void usbdev_handle(edev_usbdev * UNUSED(usbdev), edev_usbdev_info * info)
 
 int main(void)
 {
+	int ret;
 	edloop * loop = edloop_default();
 	edev_usbdev * usbdev = edev_usbdev_new(loop, usbdev_handle);
 
-	edev_usbdev_attach(usbdev);
+	ret = edev_usbdev_attach(usbdev);
+	printf("Attach usbdev to loop. ret[%d]\n", ret);
+
 	edev_usbdev_unref(usbdev);
 	usbdev = NULL;
 

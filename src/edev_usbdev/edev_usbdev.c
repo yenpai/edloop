@@ -147,7 +147,8 @@ static int hotplug_netlink_socket(edev_usbdev * hp)
 		return -2;
 	}
 
-	return sock;
+	hp->sock = sock;
+	return 0;
 }
 
 static void usbdev_ioevent_handle(edev_ioevent * io, int UNUSED(fd), unsigned int revents)
