@@ -47,7 +47,7 @@ flags = [
 '-I', '.',
 '-I', '../src/edcore',
 '-I', '../src/edev_mqueue',
-'-I', '../src/edev_usbdev',
+'-I', '../src/edev_hotplug',
 '-isystem', '/usr/include',
 ]
 

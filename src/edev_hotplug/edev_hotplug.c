@@ -1,22 +1,22 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
-#include "edev_usbdev.h"
+#include "edev_hotplug.h"
 
-struct edev_usbdev {
+struct edev_hotplug {
 	edev_ioevent       ioevent;
-	edev_usbdev_cb     notify;
+	edev_hotplug_cb    notify;
 	int                sock;
 	struct sockaddr_nl snl;
 };
 
 static const char * kobject_actions[] = {
-	[EDEV_UEVENT_ACTION_ADD]     = "add",
-	[EDEV_UEVENT_ACTION_REMOVE]  = "remove",
-	[EDEV_UEVENT_ACTION_CHANGE]  = "change",
-	[EDEV_UEVENT_ACTION_MOVE]    = "move",
-	[EDEV_UEVENT_ACTION_ONLINE]  = "online",
-	[EDEV_UEVENT_ACTION_OFFLINE] = "offline",
+	[EDEV_HOTPLUG_ADD]     = "add",
+	[EDEV_HOTPLUG_REMOVE]  = "remove",
+	[EDEV_HOTPLUG_CHANGE]  = "change",
+	[EDEV_HOTPLUG_MOVE]    = "move",
+	[EDEV_HOTPLUG_ONLINE]  = "online",
+	[EDEV_HOTPLUG_OFFLINE] = "offline",
 };
 
 static const char * netlink_message_parse(const char * buf, size_t len, const char * key)
@@ -41,7 +41,7 @@ static const char * netlink_message_parse(const char * buf, size_t len, const ch
 	return NULL;
 }
 
-static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_usbdev_info * info)
+static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_hotplug_info * info)
 {
 	const char * tmp;
 	char * ptr;
@@ -90,7 +90,7 @@ static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_usbdev_info *
 	return 0;
 }
 
-static int hotplug_netlink_parse(char * buf, ssize_t len, edev_usbdev_info * info)
+static int hotplug_netlink_parse(char * buf, ssize_t len, edev_hotplug_info * info)
 {
 	const char * tmp;
 	int i;
@@ -99,7 +99,7 @@ static int hotplug_netlink_parse(char * buf, ssize_t len, edev_usbdev_info * inf
 	if ((tmp = netlink_message_parse(buf, len, "ACTION")) == NULL)
 		return -1;
 
-	for (i = 0 ; i < EDEV_UEVENT_ACTION_MAX ; i++)
+	for (i = 0 ; i < EDEV_HOTPLUG_ACTION_MAX ; i++)
 	{
 		if (strcmp(tmp, kobject_actions[i]) == 0)
 		{
@@ -108,7 +108,7 @@ static int hotplug_netlink_parse(char * buf, ssize_t len, edev_usbdev_info * inf
 		}
 	}
 
-	if (i == EDEV_UEVENT_ACTION_MAX)
+	if (i == EDEV_HOTPLUG_ACTION_MAX)
 		return -2;
 
 	/* check that have device path (default keys in kobject_uevent) */
@@ -124,12 +124,12 @@ static int hotplug_netlink_parse(char * buf, ssize_t len, edev_usbdev_info * inf
 	return 0;
 }
 
-static int hotplug_netlink_read(edev_usbdev * hp)
+static int hotplug_netlink_read(edev_hotplug * hp)
 {
 	char buf[1024];
 	struct iovec  iov = { .iov_base = buf, .iov_len = sizeof(buf)};
 	struct msghdr meh = { .msg_iov = &iov, .msg_iovlen = 1, .msg_name = &hp->snl, .msg_namelen = sizeof(hp->snl) };
-	edev_usbdev_info  info;
+	edev_hotplug_info  info;
 	ssize_t len;
 	int ret;
 
@@ -145,14 +145,11 @@ static int hotplug_netlink_read(edev_usbdev * hp)
 	if (len < 32)
 		return -2; 
 
-	memset(&info, 0, sizeof(edev_usbdev_info));
+	memset(&info, 0, sizeof(edev_hotplug_info));
 
 	/* Parsing default keys in message */
 	if ((ret = hotplug_netlink_parse(buf, len, &info)) < 0)
-	{
-		//printf("hotplug_netlink_parse ret[%d]\n", ret);
 		return -3;
-	}
 
 	/* Parsing usb keys in message */
 	if (strcmp(info.subsystem, "usb") == 0)
@@ -175,7 +172,7 @@ static int hotplug_netlink_read(edev_usbdev * hp)
 	return 0;
 }
 
-static int hotplug_netlink_socket(edev_usbdev * hp)
+static int hotplug_netlink_socket(edev_hotplug * hp)
 {
 	int sock = -1;
 
@@ -199,15 +196,15 @@ static int hotplug_netlink_socket(edev_usbdev * hp)
 	return 0;
 }
 
-static void usbdev_ioevent_handle(edev_ioevent * io, int UNUSED(fd), unsigned int revents)
+static void hotplug_ioevent_handle(edev_ioevent * io, int UNUSED(fd), unsigned int revents)
 {
-	edev_usbdev * hp = container_of(io, edev_usbdev, ioevent);
+	edev_hotplug * hp = container_of(io, edev_hotplug, ioevent);
 
 	if (revents & EDIO_READ)
 		hotplug_netlink_read(hp);
 }
 
-int edev_usbdev_attach(edev_usbdev * hp)
+int edev_hotplug_attach(edev_hotplug * hp)
 {
 	int ret = 0;
 
@@ -224,20 +221,20 @@ int edev_usbdev_attach(edev_usbdev * hp)
 	return ret;
 }
 
-void edev_usbdev_detach(edev_usbdev * hp)
+void edev_hotplug_detach(edev_hotplug * hp)
 {
 	edev_ioevent_detach(&hp->ioevent);
 }
 
-edev_usbdev * edev_usbdev_new(edloop * loop, edev_usbdev_cb notify)
+edev_hotplug * edev_hotplug_new(edloop * loop, edev_hotplug_cb notify)
 {
-	edev_usbdev * hp;
+	edev_hotplug * hp;
 
 	if ((hp = malloc(sizeof(*hp))) == NULL)
 		return NULL;
 
 	memset(hp, 0, sizeof(*hp));
-	edev_ioevent_base_init(&hp->ioevent, loop, usbdev_ioevent_handle);
+	edev_ioevent_base_init(&hp->ioevent, loop, hotplug_ioevent_handle);
 
 	hp->sock   = -1;
 	hp->notify = notify;

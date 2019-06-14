@@ -15,7 +15,7 @@ SUBDIRS += edev_mqueue
 libedloop_la_LIBADD  += edev_mqueue/libedev_mqueue.la
 endif
 
-if BUILD_EDEV_USBDEV
-SUBDIRS += edev_usbdev
-libedloop_la_LIBADD  += edev_usbdev/libedev_usbdev.la
+if BUILD_EDEV_HOTPLUG
+SUBDIRS += edev_hotplug
+libedloop_la_LIBADD  += edev_hotplug/libedev_hotplug.la
 endif

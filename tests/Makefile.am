@@ -11,8 +11,8 @@ test_edev_mqueue_SOURCES = test_edev_mqueue.c
 test_edev_mqueue_CFLAGS  = -I$(top_srcdir)/src/edev_mqueue
 endif
 
-if BUILD_EDEV_USBDEV
-noinst_PROGRAMS         += test_edev_usbdev
-test_edev_usbdev_SOURCES = test_edev_usbdev.c
-test_edev_usbdev_CFLAGS  = -I$(top_srcdir)/src/edev_usbdev
+if BUILD_EDEV_HOTPLUG
+noinst_PROGRAMS          += test_edev_hotplug
+test_edev_hotplug_SOURCES = test_edev_hotplug.c
+test_edev_hotplug_CFLAGS  = -I$(top_srcdir)/src/edev_hotplug
 endif
