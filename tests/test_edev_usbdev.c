@@ -4,11 +4,14 @@
 
 void usbdev_handle(edev_usbdev * UNUSED(usbdev), edev_usbdev_info * info)
 {
-	printf("usbdev detect sysname[%s] bus[%u] dev[%u] action[%u]\n", 
-			info->sysname, 
+	printf("usbdev event: action[%u] sysname[%s] devpath[%s] busnum[%u] devnum[%u] idVendor[0x%04x] idProduct[0x%04x]\n", 
+			info->action,
+			info->subsystem,
+			info->devpath,
 			info->busnum,
-			info->devaddr,
-			info->detached);
+			info->devnum,
+			info->idVendor,
+			info->idProduct);
 }
 
 int main(void)

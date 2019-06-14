@@ -10,6 +10,15 @@ struct edev_usbdev {
 	struct sockaddr_nl snl;
 };
 
+static const char * kobject_actions[] = {
+	[EDEV_UEVENT_ACTION_ADD]     = "add",
+	[EDEV_UEVENT_ACTION_REMOVE]  = "remove",
+	[EDEV_UEVENT_ACTION_CHANGE]  = "change",
+	[EDEV_UEVENT_ACTION_MOVE]    = "move",
+	[EDEV_UEVENT_ACTION_ONLINE]  = "online",
+	[EDEV_UEVENT_ACTION_OFFLINE] = "offline",
+};
+
 static const char * netlink_message_parse(const char * buf, size_t len, const char * key)
 {
 	size_t keylen = strlen(key);
@@ -32,65 +41,85 @@ static const char * netlink_message_parse(const char * buf, size_t len, const ch
 	return NULL;
 }
 
+static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_usbdev_info * info)
+{
+	const char * tmp;
+	char * ptr;
+
+	/* set busnum if have BUSNUM */
+	if ((tmp = netlink_message_parse(buf, len, "BUSNUM")) != NULL)
+		info->busnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10)); 
+
+	/* set devnum if have DEVNUM */
+	if ((tmp = netlink_message_parse(buf, len, "DEVNUM")) != NULL)
+		info->devnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10));
+	
+	/* check busnum and devnum */
+	if (info->busnum == 0 || info->devnum == 0)
+	{
+		/* set that if have DEVICE */
+		if ((tmp = netlink_message_parse(buf, len, "DEVICE")) != NULL)
+		{
+			/* Parse a device path such as /dev/bus/usb/003/004 */
+			if ((ptr = (char *) strrchr(tmp,'/')) != NULL)
+			{
+				info->busnum = (uint8_t)(0xFF & strtoul(ptr - 3, NULL, 10));
+				info->devnum = (uint8_t)(0xFF & strtoul(ptr + 1, NULL, 10));
+			}
+		}
+		
+		if (info->busnum == 0 || info->devnum == 0)
+			return -1;
+	}
+
+	/* set idVendor and idProduct if have PRODUCT */
+	if ((tmp = netlink_message_parse(buf, len, "PRODUCT")) != NULL)
+	{
+		/* Parse a usb_ids such as 1307/163/100 */
+		if ((ptr = (char *) strchr(tmp,'/')) != NULL)
+		{
+			info->idVendor  = (uint16_t) (0xFFFF & strtoul(tmp, NULL, 16));
+			info->idProduct = (uint16_t) (0xFFFF & strtoul(ptr + 1, NULL, 16));
+		}
+	}
+
+	/* check idVendor and idProduct */
+	if (info->idVendor == 0 || info->idProduct == 0)
+		return -2;
+
+	return 0;
+}
+
 static int hotplug_netlink_parse(char * buf, ssize_t len, edev_usbdev_info * info)
 {
 	const char * tmp;
-	char * pLastSlash;
 	int i;
 
-	memset(info, 0, sizeof(edev_usbdev_info));
-
-	/* check that this is add or remove */
+	/* check that have action type (default keys in kobject_uevent) */
 	if ((tmp = netlink_message_parse(buf, len, "ACTION")) == NULL)
 		return -1;
-	else if (strcmp(tmp, "remove") == 0)
-		info->detached = 1;
-	else if (strcmp(tmp, "add") == 0)
-		info->detached = 0;
-	else
-		return -2;
 
-	/* check that this is usb message */
-	if ((tmp = netlink_message_parse(buf, len, "SUBSYSTEM")) == NULL)
-		return -3;
-	else if (strcmp(tmp, "usb") != 0)
-		return -4;
-
-	/* check that have bus number or device */
-	if ((tmp = netlink_message_parse(buf, len, "BUSNUM")) == NULL)
+	for (i = 0 ; i < EDEV_UEVENT_ACTION_MAX ; i++)
 	{
-		if ((tmp = netlink_message_parse(buf, len, "DEVICE")) == NULL)
-			return -5;
-
-		/* Parse a device path such as /dev/bus/usb/003/004 */
-		if ((pLastSlash = (char *) strrchr(tmp,'/')) == NULL)
-			return -6;
-
-		info->devaddr = (uint8_t)(0xFF & strtoul(pLastSlash + 1, NULL, 10));
-		info->busnum  = (uint8_t)(0xFF & strtoul(pLastSlash - 3, NULL, 10));
-		return 0;
-	}
-
-	info->busnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10)); 
-
-	/* check that have device number */
-	if ((tmp = netlink_message_parse(buf, len, "DEVNUM")) == NULL)
-		return -7;
-
-	info->devaddr = (uint8_t) (0xFF & strtoul(tmp, NULL, 10));
-
-	/* check that have device path */
-	if ((tmp = netlink_message_parse(buf, len, "DEVPATH")) == NULL)
-		return -8;
-
-	for (i = strlen(tmp) - 1 ; i > 0 ; --i)
-	{
-		if (tmp[i] == '/')
+		if (strcmp(tmp, kobject_actions[i]) == 0)
 		{
-			info->sysname = tmp + i + 1;
+			info->action = i;
 			break;
 		}
 	}
+
+	if (i == EDEV_UEVENT_ACTION_MAX)
+		return -2;
+
+	/* check that have device path (default keys in kobject_uevent) */
+	if ((tmp = netlink_message_parse(buf, len, "DEVPATH")) == NULL)
+		return -3;
+	info->devpath = tmp;
+
+	/* check that have subsystem (default keys in kobject_uevent ) */
+	if ((tmp = netlink_message_parse(buf, len, "SUBSYSTEM")) == NULL)
+		return -4;
+	info->subsystem = tmp;
 
 	return 0;
 }
@@ -116,9 +145,28 @@ static int hotplug_netlink_read(edev_usbdev * hp)
 	if (len < 32)
 		return -2; 
 
-	/* Parsing message */
+	memset(&info, 0, sizeof(edev_usbdev_info));
+
+	/* Parsing default keys in message */
 	if ((ret = hotplug_netlink_parse(buf, len, &info)) < 0)
+	{
+		//printf("hotplug_netlink_parse ret[%d]\n", ret);
 		return -3;
+	}
+
+	/* Parsing usb keys in message */
+	if (strcmp(info.subsystem, "usb") == 0)
+	{
+		if ((ret = hotplug_netlink_parse_usb(buf, len, &info)) < 0)
+		{
+			//printf("hotplug_netlink_parse_usb ret[%d]\n", ret);
+			return -4;
+		}
+	}
+	else
+	{
+		return -99;
+	}
 
 	/* Notification */
 	if (hp->notify)
