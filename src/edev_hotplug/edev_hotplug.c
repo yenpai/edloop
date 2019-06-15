@@ -3,11 +3,36 @@
 #include <linux/netlink.h>
 #include "edev_hotplug.h"
 
+typedef struct {
+	struct list_head node;
+	uint8_t key;
+	char    value[128];
+} uevent_rule;
+
 struct edev_hotplug {
 	edev_ioevent       ioevent;
 	edev_hotplug_cb    notify;
 	int                sock;
 	struct sockaddr_nl snl;
+	struct list_head   rules;
+};
+
+static const char * uevent_keys[] = {
+	[EDEV_HOTPLUG_UEKEY_ACTION]    = "ACTION",
+    [EDEV_HOTPLUG_UEKEY_DEVPATH]   = "DEVPATH",
+    [EDEV_HOTPLUG_UEKEY_SUBSYSTEM] = "SUBSYSTEM",
+
+	[EDEV_HOTPLUG_UEKEY_MAJOR]     = "MAJOR",
+    [EDEV_HOTPLUG_UEKEY_MINOR]     = "MINOR",
+    [EDEV_HOTPLUG_UEKEY_DEVNAME]   = "DEVNAME",
+    [EDEV_HOTPLUG_UEKEY_DEVTYPE]   = "DEVTYPE",
+
+    [EDEV_HOTPLUG_UEKEY_DRIVER]    = "DRIVER",
+    [EDEV_HOTPLUG_UEKEY_DEVICE]    = "DEVICE",
+
+    [EDEV_HOTPLUG_UEKEY_PRODUCT]   = "PRODUCT",
+    [EDEV_HOTPLUG_UEKEY_BUSNUM]    = "BUSNUM",
+    [EDEV_HOTPLUG_UEKEY_DEVNUM]    = "DEVNUM",
 };
 
 static const char * kobject_actions[] = {
@@ -18,6 +43,59 @@ static const char * kobject_actions[] = {
 	[EDEV_HOTPLUG_ONLINE]  = "online",
 	[EDEV_HOTPLUG_OFFLINE] = "offline",
 };
+
+static uevent_rule * hotplug_rule_find(struct list_head * list, uint8_t key, char * value)
+{
+	uevent_rule * rule;
+
+	list_for_each_entry(rule, list, node)
+	{
+		if (key == rule->key && strcmp(value, rule->value) == 0)
+			return rule;
+	}
+
+	return NULL;
+}
+
+static void hotplug_rule_del(struct list_head * list, uint8_t key, char * value)
+{
+	uevent_rule * rule;
+
+	if ((rule = hotplug_rule_find(list, key, value)) != NULL)
+	{
+		list_del_init(&rule->node);
+		free(rule);
+	}
+}
+
+static int hotplug_rule_add(struct list_head * list, uint8_t key, char * value)
+{
+	struct list_head * head = list;
+	uevent_rule * rule, * tmp;
+
+	if ((rule = hotplug_rule_find(list, key, value)) != NULL)
+		return 0;
+
+	if ((rule = malloc(sizeof(uevent_rule))) == NULL)
+		return -2;
+
+	memset(rule, 0, sizeof(uevent_rule));
+	INIT_LIST_HEAD(&rule->node);
+	rule->key = key;
+	strncpy(rule->value, value, sizeof(rule->value) - 1);
+
+	list_for_each_entry(tmp, list, node)
+	{
+		if (tmp->key > rule->key)
+		{
+			head = &tmp->node;
+			break;
+		}
+	}
+
+	list_add_tail(&rule->node, head);
+	return 0;
+}
 
 static const char * netlink_message_parse(const char * buf, size_t len, const char * key)
 {
@@ -41,21 +119,23 @@ static const char * netlink_message_parse(const char * buf, size_t len, const ch
 	return NULL;
 }
 
+#if 0
 static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_hotplug_info * info)
 {
+	edev_hotplug_usb_info * usb_info = &info->usb_info;
 	const char * tmp;
 	char * ptr;
 
 	/* set busnum if have BUSNUM */
 	if ((tmp = netlink_message_parse(buf, len, "BUSNUM")) != NULL)
-		info->busnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10)); 
+		usb_info->busnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10)); 
 
 	/* set devnum if have DEVNUM */
 	if ((tmp = netlink_message_parse(buf, len, "DEVNUM")) != NULL)
-		info->devnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10));
+		usb_info->devnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10));
 	
 	/* check busnum and devnum */
-	if (info->busnum == 0 || info->devnum == 0)
+	if (usb_info->busnum == 0 || usb_info->devnum == 0)
 	{
 		/* set that if have DEVICE */
 		if ((tmp = netlink_message_parse(buf, len, "DEVICE")) != NULL)
@@ -63,12 +143,12 @@ static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_hotplug_info 
 			/* Parse a device path such as /dev/bus/usb/003/004 */
 			if ((ptr = (char *) strrchr(tmp,'/')) != NULL)
 			{
-				info->busnum = (uint8_t)(0xFF & strtoul(ptr - 3, NULL, 10));
-				info->devnum = (uint8_t)(0xFF & strtoul(ptr + 1, NULL, 10));
+				usb_info->busnum = (uint8_t)(0xFF & strtoul(ptr - 3, NULL, 10));
+				usb_info->devnum = (uint8_t)(0xFF & strtoul(ptr + 1, NULL, 10));
 			}
 		}
 		
-		if (info->busnum == 0 || info->devnum == 0)
+		if (usb_info->busnum == 0 || usb_info->devnum == 0)
 			return -1;
 	}
 
@@ -78,50 +158,89 @@ static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_hotplug_info 
 		/* Parse a usb_ids such as 1307/163/100 */
 		if ((ptr = (char *) strchr(tmp,'/')) != NULL)
 		{
-			info->idVendor  = (uint16_t) (0xFFFF & strtoul(tmp, NULL, 16));
-			info->idProduct = (uint16_t) (0xFFFF & strtoul(ptr + 1, NULL, 16));
+			usb_info->idVendor  = (uint16_t) (0xFFFF & strtoul(tmp, NULL, 16));
+			usb_info->idProduct = (uint16_t) (0xFFFF & strtoul(ptr + 1, NULL, 16));
 		}
 	}
 
 	/* check idVendor and idProduct */
-	if (info->idVendor == 0 || info->idProduct == 0)
+	if (usb_info->idVendor == 0 || usb_info->idProduct == 0)
 		return -2;
 
 	return 0;
 }
+#endif
 
 static int hotplug_netlink_parse(char * buf, ssize_t len, edev_hotplug_info * info)
 {
-	const char * tmp;
-	int i;
+	uint8_t key;
+	uint8_t action;
 
-	/* check that have action type (default keys in kobject_uevent) */
-	if ((tmp = netlink_message_parse(buf, len, "ACTION")) == NULL)
+	memset(info, 0, sizeof(edev_hotplug_info));
+
+	for (key = 0 ; key < EDEV_HOTPLUG_UEKEY_MAX ; key++)
+		info->uevents[key] = netlink_message_parse(buf, len, uevent_keys[key]);
+
+	/* check that have default keys from kernel uevent */
+	if (info->uevents[EDEV_HOTPLUG_UEKEY_ACTION] == NULL)
 		return -1;
+	if (info->uevents[EDEV_HOTPLUG_UEKEY_SUBSYSTEM] == NULL)
+		return -2;
+	if (info->uevents[EDEV_HOTPLUG_UEKEY_DEVPATH] == NULL)
+		return -3;
 
-	for (i = 0 ; i < EDEV_HOTPLUG_ACTION_MAX ; i++)
+	/* check and parsing action */
+	for (action = 0 ; action < EDEV_HOTPLUG_ACTION_MAX ; action++)
 	{
-		if (strcmp(tmp, kobject_actions[i]) == 0)
+		if (strcmp(info->uevents[EDEV_HOTPLUG_UEKEY_ACTION], kobject_actions[action]) == 0)
 		{
-			info->action = i;
+			info->action = action;
 			break;
 		}
 	}
 
-	if (i == EDEV_HOTPLUG_ACTION_MAX)
-		return -2;
-
-	/* check that have device path (default keys in kobject_uevent) */
-	if ((tmp = netlink_message_parse(buf, len, "DEVPATH")) == NULL)
-		return -3;
-	info->devpath = tmp;
-
-	/* check that have subsystem (default keys in kobject_uevent ) */
-	if ((tmp = netlink_message_parse(buf, len, "SUBSYSTEM")) == NULL)
+	if (action == EDEV_HOTPLUG_ACTION_MAX)
 		return -4;
-	info->subsystem = tmp;
 
 	return 0;
+}
+
+static bool hotplug_netlink_check_rules(edev_hotplug * hp, edev_hotplug_info * info)
+{
+	struct list_head * list = &hp->rules;
+	uevent_rule * rule;
+	bool    match;
+	uint8_t key;
+
+	if (list_empty(list))
+		return true;
+
+	rule  = list_first_entry(list, uevent_rule, node);
+	key   = rule->key;
+	match = false;
+
+	list_for_each_entry(rule, list, node)
+	{
+		if (key != rule->key)
+		{
+			if (match == false)
+				break;
+
+			key   = rule->key;
+			match = false;
+		}
+		
+		if (match == true)
+			continue;
+
+		if (info->uevents[key] == NULL)
+			break;
+
+		if (strcmp(info->uevents[key], rule->value) == 0)
+			match = true;
+	}
+
+	return match;
 }
 
 static int hotplug_netlink_read(edev_hotplug * hp)
@@ -145,25 +264,13 @@ static int hotplug_netlink_read(edev_hotplug * hp)
 	if (len < 32)
 		return -2; 
 
-	memset(&info, 0, sizeof(edev_hotplug_info));
-
 	/* Parsing default keys in message */
 	if ((ret = hotplug_netlink_parse(buf, len, &info)) < 0)
 		return -3;
 
-	/* Parsing usb keys in message */
-	if (strcmp(info.subsystem, "usb") == 0)
-	{
-		if ((ret = hotplug_netlink_parse_usb(buf, len, &info)) < 0)
-		{
-			//printf("hotplug_netlink_parse_usb ret[%d]\n", ret);
-			return -4;
-		}
-	}
-	else
-	{
-		return -99;
-	}
+	/* Check rules filter */
+	if (hotplug_netlink_check_rules(hp, &info) == false)
+		return -4;
 
 	/* Notification */
 	if (hp->notify)
@@ -204,6 +311,29 @@ static void hotplug_ioevent_handle(edev_ioevent * io, int UNUSED(fd), unsigned i
 		hotplug_netlink_read(hp);
 }
 
+int edev_hotplug_filter_uevent_set(edev_hotplug * hp, bool enable, uint8_t key, char * value)
+{
+	if (key >= EDEV_HOTPLUG_UEKEY_MAX)
+		return -1;
+
+	if (value == NULL)
+		return -1;
+
+	if (enable)
+		return hotplug_rule_add(&hp->rules, key, value);
+	
+	hotplug_rule_del(&hp->rules, key, value);
+	return 0;
+}
+
+int edev_hotplug_filter_action_set(edev_hotplug * hp, bool enable, uint8_t action)
+{
+	if (action >= EDEV_HOTPLUG_ACTION_MAX)
+		return -1;
+	
+	return edev_hotplug_filter_uevent_set(hp, enable, EDEV_HOTPLUG_UEKEY_ACTION, (char *) kobject_actions[action]);
+}
+
 int edev_hotplug_attach(edev_hotplug * hp)
 {
 	int ret = 0;
@@ -238,6 +368,7 @@ edev_hotplug * edev_hotplug_new(edloop * loop, edev_hotplug_cb notify)
 
 	hp->sock   = -1;
 	hp->notify = notify;
+	INIT_LIST_HEAD(&hp->rules);
 
 	return hp;
 }
