@@ -21,16 +21,14 @@ static const char * uevent_keys[] = {
 	[EDEV_HOTPLUG_UEKEY_ACTION]    = "ACTION",
     [EDEV_HOTPLUG_UEKEY_DEVPATH]   = "DEVPATH",
     [EDEV_HOTPLUG_UEKEY_SUBSYSTEM] = "SUBSYSTEM",
+    [EDEV_HOTPLUG_UEKEY_DRIVER]    = "DRIVER",
+    [EDEV_HOTPLUG_UEKEY_DEVICE]    = "DEVICE",
+    [EDEV_HOTPLUG_UEKEY_PRODUCT]   = "PRODUCT",
 
 	[EDEV_HOTPLUG_UEKEY_MAJOR]     = "MAJOR",
     [EDEV_HOTPLUG_UEKEY_MINOR]     = "MINOR",
     [EDEV_HOTPLUG_UEKEY_DEVNAME]   = "DEVNAME",
     [EDEV_HOTPLUG_UEKEY_DEVTYPE]   = "DEVTYPE",
-
-    [EDEV_HOTPLUG_UEKEY_DRIVER]    = "DRIVER",
-    [EDEV_HOTPLUG_UEKEY_DEVICE]    = "DEVICE",
-
-    [EDEV_HOTPLUG_UEKEY_PRODUCT]   = "PRODUCT",
     [EDEV_HOTPLUG_UEKEY_BUSNUM]    = "BUSNUM",
     [EDEV_HOTPLUG_UEKEY_DEVNUM]    = "DEVNUM",
 };
@@ -119,58 +117,6 @@ static const char * netlink_message_parse(const char * buf, size_t len, const ch
 	return NULL;
 }
 
-#if 0
-static int hotplug_netlink_parse_usb(char * buf, ssize_t len, edev_hotplug_info * info)
-{
-	edev_hotplug_usb_info * usb_info = &info->usb_info;
-	const char * tmp;
-	char * ptr;
-
-	/* set busnum if have BUSNUM */
-	if ((tmp = netlink_message_parse(buf, len, "BUSNUM")) != NULL)
-		usb_info->busnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10)); 
-
-	/* set devnum if have DEVNUM */
-	if ((tmp = netlink_message_parse(buf, len, "DEVNUM")) != NULL)
-		usb_info->devnum = (uint8_t) (0xFF & strtoul(tmp, NULL, 10));
-	
-	/* check busnum and devnum */
-	if (usb_info->busnum == 0 || usb_info->devnum == 0)
-	{
-		/* set that if have DEVICE */
-		if ((tmp = netlink_message_parse(buf, len, "DEVICE")) != NULL)
-		{
-			/* Parse a device path such as /dev/bus/usb/003/004 */
-			if ((ptr = (char *) strrchr(tmp,'/')) != NULL)
-			{
-				usb_info->busnum = (uint8_t)(0xFF & strtoul(ptr - 3, NULL, 10));
-				usb_info->devnum = (uint8_t)(0xFF & strtoul(ptr + 1, NULL, 10));
-			}
-		}
-		
-		if (usb_info->busnum == 0 || usb_info->devnum == 0)
-			return -1;
-	}
-
-	/* set idVendor and idProduct if have PRODUCT */
-	if ((tmp = netlink_message_parse(buf, len, "PRODUCT")) != NULL)
-	{
-		/* Parse a usb_ids such as 1307/163/100 */
-		if ((ptr = (char *) strchr(tmp,'/')) != NULL)
-		{
-			usb_info->idVendor  = (uint16_t) (0xFFFF & strtoul(tmp, NULL, 16));
-			usb_info->idProduct = (uint16_t) (0xFFFF & strtoul(ptr + 1, NULL, 16));
-		}
-	}
-
-	/* check idVendor and idProduct */
-	if (usb_info->idVendor == 0 || usb_info->idProduct == 0)
-		return -2;
-
-	return 0;
-}
-#endif
-
 static int hotplug_netlink_parse(char * buf, ssize_t len, edev_hotplug_info * info)
 {
 	uint8_t key;
@@ -178,15 +124,15 @@ static int hotplug_netlink_parse(char * buf, ssize_t len, edev_hotplug_info * in
 
 	memset(info, 0, sizeof(edev_hotplug_info));
 
-	for (key = 0 ; key < EDEV_HOTPLUG_UEKEY_MAX ; key++)
+	for (key = EDEV_HOTPLUG_DEFAULT_UEKEY_MIN ; key <= EDEV_HOTPLUG_DEFAULT_UEKEY_MAX ; key++)
 		info->uevents[key] = netlink_message_parse(buf, len, uevent_keys[key]);
 
 	/* check that have default keys from kernel uevent */
 	if (info->uevents[EDEV_HOTPLUG_UEKEY_ACTION] == NULL)
 		return -1;
-	if (info->uevents[EDEV_HOTPLUG_UEKEY_SUBSYSTEM] == NULL)
-		return -2;
 	if (info->uevents[EDEV_HOTPLUG_UEKEY_DEVPATH] == NULL)
+		return -2;
+	if (info->uevents[EDEV_HOTPLUG_UEKEY_SUBSYSTEM] == NULL)
 		return -3;
 
 	/* check and parsing action */
@@ -201,6 +147,13 @@ static int hotplug_netlink_parse(char * buf, ssize_t len, edev_hotplug_info * in
 
 	if (action == EDEV_HOTPLUG_ACTION_MAX)
 		return -4;
+
+	/* Get more uevent value for usb */
+	if (strcmp(info->uevents[EDEV_HOTPLUG_UEKEY_SUBSYSTEM], "usb") == 0)
+	{
+		for (key = EDEV_HOTPLUG_USB_UEKEY_MIN ; key <= EDEV_HOTPLUG_USB_UEKEY_MAX ; key++)
+			info->uevents[key] = netlink_message_parse(buf, len, uevent_keys[key]);
+	}
 
 	return 0;
 }
@@ -309,6 +262,11 @@ static void hotplug_ioevent_handle(edev_ioevent * io, int UNUSED(fd), unsigned i
 
 	if (revents & EDIO_READ)
 		hotplug_netlink_read(hp);
+}
+
+const char * edev_hotplug_uevent_key_to_str(edev_hotplug_uevent_key_e key)
+{
+	return (key < EDEV_HOTPLUG_UEKEY_MAX) ? uevent_keys[key] : NULL ;
 }
 
 int edev_hotplug_filter_uevent_set(edev_hotplug * hp, bool enable, uint8_t key, char * value)

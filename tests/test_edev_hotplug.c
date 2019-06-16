@@ -4,16 +4,22 @@
 
 void hotplug_handle(edev_hotplug * UNUSED(hotplug), edev_hotplug_info * info)
 {
-	printf("hotplug event:\n");
-    printf("  --> ACTION    = [%u] %s\n", info->action, info->uevents[EDEV_HOTPLUG_UEKEY_ACTION]);
-    printf("  --> DEVPATH   = %s\n", info->uevents[EDEV_HOTPLUG_UEKEY_DEVPATH]);
-    printf("  --> SUBSYSTEM = %s\n", info->uevents[EDEV_HOTPLUG_UEKEY_SUBSYSTEM]);
-	
-	if (info->uevents[EDEV_HOTPLUG_UEKEY_DEVICE])
-		printf("  --> DEVICE    = %s\n", info->uevents[EDEV_HOTPLUG_UEKEY_DEVICE]);
+	uint8_t key = EDEV_HOTPLUG_UEKEY_ACTION;
 
-	if (info->uevents[EDEV_HOTPLUG_UEKEY_PRODUCT])
-		printf("  --> PRODUCT   = %s\n", info->uevents[EDEV_HOTPLUG_UEKEY_PRODUCT]);
+	printf("hotplug event:\n");
+
+    printf("  --> %16s    = %s [%u]\n", 
+			edev_hotplug_uevent_key_to_str(key), info->uevents[key], info->action);
+
+	key++;
+	for (; key < EDEV_HOTPLUG_UEKEY_MAX ; key++)
+	{
+		if (info->uevents[key])
+		{
+			printf("  --> %16s    = %s\n", 
+					edev_hotplug_uevent_key_to_str(key), info->uevents[key]);
+		}
+	}
 }
 
 int main(void)

@@ -17,31 +17,29 @@ typedef enum {
 } edev_hotplug_actions_e;
 
 typedef enum {
+	/* Default */
 	EDEV_HOTPLUG_UEKEY_ACTION,
 	EDEV_HOTPLUG_UEKEY_DEVPATH,
 	EDEV_HOTPLUG_UEKEY_SUBSYSTEM,
+	EDEV_HOTPLUG_UEKEY_DRIVER,
+	EDEV_HOTPLUG_UEKEY_DEVICE,
+	EDEV_HOTPLUG_UEKEY_PRODUCT,
 
+	/* For USB */
 	EDEV_HOTPLUG_UEKEY_MAJOR,
 	EDEV_HOTPLUG_UEKEY_MINOR,
 	EDEV_HOTPLUG_UEKEY_DEVNAME,
 	EDEV_HOTPLUG_UEKEY_DEVTYPE,
-	
-	EDEV_HOTPLUG_UEKEY_DRIVER,
-	EDEV_HOTPLUG_UEKEY_DEVICE,
-	
-	EDEV_HOTPLUG_UEKEY_PRODUCT,
 	EDEV_HOTPLUG_UEKEY_BUSNUM,
 	EDEV_HOTPLUG_UEKEY_DEVNUM,
-
+	
 	EDEV_HOTPLUG_UEKEY_MAX,
 } edev_hotplug_uevent_key_e;
 
-typedef struct {
-	uint8_t      busnum;
-	uint8_t      devnum;
-	uint16_t     idVendor;
-	uint16_t     idProduct;
-} edev_hotplug_usb_info;
+#define EDEV_HOTPLUG_DEFAULT_UEKEY_MIN EDEV_HOTPLUG_UEKEY_ACTION
+#define EDEV_HOTPLUG_DEFAULT_UEKEY_MAX EDEV_HOTPLUG_UEKEY_PRODUCT
+#define EDEV_HOTPLUG_USB_UEKEY_MIN EDEV_HOTPLUG_UEKEY_MAJOR
+#define EDEV_HOTPLUG_USB_UEKEY_MAX EDEV_HOTPLUG_UEKEY_DEVNUM
 
 typedef struct {
 	uint8_t      action;
@@ -51,6 +49,7 @@ typedef struct {
 typedef void (* edev_hotplug_cb) (edev_hotplug *, edev_hotplug_info *);
 
 _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_hotplug, edev_hotplug);
+const char *   edev_hotplug_uevent_key_to_str(edev_hotplug_uevent_key_e key);
 int            edev_hotplug_filter_uevent_set(edev_hotplug *, bool enable, uint8_t key, char * value);
 int            edev_hotplug_filter_action_set(edev_hotplug *, bool enable, uint8_t action);
 int            edev_hotplug_attach(edev_hotplug *);
