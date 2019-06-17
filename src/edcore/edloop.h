@@ -109,7 +109,7 @@ edloop * edloop_new(void);
 
 /*****************************************************************************/
 _EDOBJECT_EXTEND_METHOD_MACRO_(edev_source, edev_source);
-void edev_source_init(edev_source *, edloop *, edev_source_type, edobject_finalize_cb);
+void edev_source_init(edev_source *, edloop *, edev_source_type);
 #define _EDEV_SOURCE_EXTEND_METHOD_MACRO_(TYPE, NAME) \
 	_EDOBJECT_EXTEND_METHOD_MACRO_(TYPE, NAME); \
 	static inline edev_source * NAME##_to_source(TYPE * o) { return (edev_source *) o; } \

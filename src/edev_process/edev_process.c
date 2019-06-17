@@ -1,9 +1,5 @@
 #include "edloop.h"
 
-static void edev_process_finalize(edobject * UNUSED(obj))
-{
-}
-
 int edev_process_attach(edev_process * process, pid_t pid)
 {
 	edev_source * source = edev_process_to_source(process);
@@ -31,8 +27,7 @@ void edev_process_detach(edev_process * process)
 
 void edev_process_init(edev_process * process, edloop * loop, edev_process_cb done)
 {
-	edev_source_init(&process->source, loop, EDEV_PROCESS_TYPE, edev_process_finalize);
-
+	edev_source_init(&process->source, loop, EDEV_PROCESS_TYPE);
 	process->pid  = 0;
 	process->done = done;
 }

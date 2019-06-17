@@ -83,8 +83,8 @@ void edev_mqueue_init(edev_mqueue * mq, edloop * loop, edev_mqueue_cb handle)
 {
 	pthread_mutexattr_t attr;
 
-	edev_source_init(&mq->oneshot.source, loop, EDEV_ONESHOT_TYPE, edev_mqueue_finalize);
-	mq->oneshot.done = edev_mqueue_handle;
+	edev_oneshot_init(&mq->oneshot, loop, edev_mqueue_handle);
+	edobject_register_finalize(edev_mqueue_to_object(mq), edev_mqueue_finalize);
 
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);

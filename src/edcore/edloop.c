@@ -729,11 +729,12 @@ edloop * edloop_new(void)
 	pthread_mutexattr_t attr;
 	int index;
 
-	if ((loop = malloc(sizeof(*loop))) == NULL)
+	if ((loop = malloc(sizeof(edloop))) == NULL)
 		return NULL;
 
-	memset(loop, 0, sizeof(*loop));
-	edobject_init(&loop->object, edloop_finalize);
+	memset(loop, 0, sizeof(edloop));
+	edobject_init(edloop_to_object(loop));
+	edobject_register_finalize(edloop_to_object(loop), edloop_finalize);
 
 	if ((loop->epfd = epoll_create1(EPOLL_CLOEXEC)) < 0)
 	{
@@ -770,9 +771,9 @@ edloop * edloop_new(void)
 
 /*****************************************************************************/
 
-void edev_source_init(edev_source * source, edloop * loop, edev_source_type type, edobject_finalize_cb finalize)
+void edev_source_init(edev_source * source, edloop * loop, edev_source_type type)
 {
-	edobject_init(&source->object, finalize);
+	edobject_init(edev_source_to_object(source));
 	INIT_LIST_HEAD(&source->entry);
 	source->loop    = loop;
 	source->type    = type;

@@ -1,9 +1,5 @@
 #include "edloop.h"
 
-static void edev_oneshot_finalize(edobject * UNUSED(obj))
-{
-}
-
 int edev_oneshot_action(edev_oneshot * oneshot)
 {
 	if (oneshot->action == false)
@@ -37,8 +33,7 @@ void edev_oneshot_detach(edev_oneshot * oneshot)
 
 void edev_oneshot_init(edev_oneshot * oneshot, edloop * loop, edev_oneshot_cb done)
 {
-	edev_source_init(&oneshot->source, loop, EDEV_ONESHOT_TYPE, edev_oneshot_finalize);
-
+	edev_source_init(&oneshot->source, loop, EDEV_ONESHOT_TYPE);
 	oneshot->done   = done;
 	oneshot->action = false;
 }

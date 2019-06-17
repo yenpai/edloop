@@ -1,9 +1,5 @@
 #include "edloop.h"
 
-static void edev_timeout_finalize(edobject * UNUSED(obj))
-{
-}
-
 int edev_timeout_get_remain(edev_timeout * timeout)
 {
 	struct timeval tv;
@@ -42,8 +38,7 @@ void edev_timeout_stop(edev_timeout * timeout)
 
 void edev_timeout_init(edev_timeout * timeout, edloop * loop, edev_timeout_cb done)
 {
-	edev_source_init(&timeout->source, loop, EDEV_TIMEOUT_TYPE, edev_timeout_finalize);
-
+	edev_source_init(&timeout->source, loop, EDEV_TIMEOUT_TYPE);
 	timeout->time.tv_sec  = 0;
 	timeout->time.tv_usec = 0;
 	timeout->done = done;
@@ -55,6 +50,7 @@ edev_timeout * edev_timeout_new(edloop * loop, edev_timeout_cb done)
 
 	if (loop == NULL)
 		return NULL;
+
 	if ((timeout = malloc(sizeof(*timeout))) == NULL)
 		return NULL;
 

@@ -53,7 +53,8 @@ void edev_ioevent_detach(edev_ioevent * io)
 
 void edev_ioevent_init(edev_ioevent * io, edloop * loop, edev_ioevent_cb handle)
 {
-	edev_source_init(&io->source, loop, EDEV_IOEVENT_TYPE, edev_ioevent_finalize);
+	edev_source_init(edev_ioevent_to_source(io), loop, EDEV_IOEVENT_TYPE);
+	edobject_register_finalize(edev_ioevent_to_object(io), edev_ioevent_finalize);
 
 	io->fd       = -1;
 	io->flags    = 0;
