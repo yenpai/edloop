@@ -770,7 +770,7 @@ edloop * edloop_new(void)
 
 /*****************************************************************************/
 
-void edev_source_base_init(edev_source * source, edloop * loop, edev_source_type type, edobject_finalize_cb finalize)
+void edev_source_init(edev_source * source, edloop * loop, edev_source_type type, edobject_finalize_cb finalize)
 {
 	edobject_init(&source->object, finalize);
 	INIT_LIST_HEAD(&source->entry);

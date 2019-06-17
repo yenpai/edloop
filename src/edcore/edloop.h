@@ -98,18 +98,18 @@ typedef enum {
 /*****************************************************************************/
 
 _EDOBJECT_EXTEND_METHOD_MACRO_(edloop, edloop);
-void        edloop_detach(edloop *, edev_source *);
-int         edloop_attach(edloop *, edev_source *);
-void        edloop_cancel(edloop *);
-void        edloop_wakeup(edloop *);
-void        edloop_done(edloop *);
-int         edloop_loop(edloop *);
+void     edloop_detach(edloop *, edev_source *);
+int      edloop_attach(edloop *, edev_source *);
+void     edloop_cancel(edloop *);
+void     edloop_wakeup(edloop *);
+void     edloop_done(edloop *);
+int      edloop_loop(edloop *);
 edloop * edloop_default(void);
 edloop * edloop_new(void);
 
 /*****************************************************************************/
 _EDOBJECT_EXTEND_METHOD_MACRO_(edev_source, edev_source);
-void edev_source_base_init(edev_source *, edloop *, edev_source_type, edobject_finalize_cb);
+void edev_source_init(edev_source *, edloop *, edev_source_type, edobject_finalize_cb);
 #define _EDEV_SOURCE_EXTEND_METHOD_MACRO_(TYPE, NAME) \
 	_EDOBJECT_EXTEND_METHOD_MACRO_(TYPE, NAME); \
 	static inline edev_source * NAME##_to_source(TYPE * o) { return (edev_source *) o; } \
@@ -120,6 +120,7 @@ void edev_source_base_init(edev_source *, edloop *, edev_source_type, edobject_f
 _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_process, edev_process);
 int            edev_process_attach(edev_process *, pid_t pid);
 void           edev_process_detach(edev_process *);
+void           edev_process_init(edev_process *, edloop *, edev_process_cb);
 edev_process * edev_process_new(edloop *, edev_process_cb);
 
 /*****************************************************************************/
@@ -128,6 +129,7 @@ _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_oneshot, edev_oneshot);
 int            edev_oneshot_action(edev_oneshot *);
 int            edev_oneshot_attach(edev_oneshot *);
 void           edev_oneshot_detach(edev_oneshot *);
+void           edev_oneshot_init(edev_oneshot *, edloop *, edev_oneshot_cb);
 edev_oneshot * edev_oneshot_new(edloop *, edev_oneshot_cb);
 
 /*****************************************************************************/
@@ -136,6 +138,7 @@ _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_timeout, edev_timeout);
 int            edev_timeout_get_remain(edev_timeout *);
 int            edev_timeout_start(edev_timeout *, int msec);
 void           edev_timeout_stop(edev_timeout *);
+void           edev_timeout_init(edev_timeout *, edloop *, edev_timeout_cb);
 edev_timeout * edev_timeout_new(edloop *, edev_timeout_cb);
 
 /*****************************************************************************/
@@ -144,7 +147,7 @@ _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_ioevent, edev_ioevent);
 int            edev_ioevent_get_unix_fd(edev_ioevent *);
 int            edev_ioevent_attach(edev_ioevent *, int fd, unsigned int flags);
 void           edev_ioevent_detach(edev_ioevent *);
-void           edev_ioevent_base_init(edev_ioevent *, edloop *, edev_ioevent_cb);
+void           edev_ioevent_init(edev_ioevent *, edloop *, edev_ioevent_cb);
 edev_ioevent * edev_ioevent_new(edloop *, edev_ioevent_cb);
 
 /*****************************************************************************/

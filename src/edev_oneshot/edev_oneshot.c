@@ -35,6 +35,14 @@ void edev_oneshot_detach(edev_oneshot * oneshot)
 	edloop_detach(source->loop, source);
 }
 
+void edev_oneshot_init(edev_oneshot * oneshot, edloop * loop, edev_oneshot_cb done)
+{
+	edev_source_init(&oneshot->source, loop, EDEV_ONESHOT_TYPE, edev_oneshot_finalize);
+
+	oneshot->done   = done;
+	oneshot->action = false;
+}
+
 edev_oneshot * edev_oneshot_new(edloop * loop, edev_oneshot_cb done)
 {
 	edev_oneshot * oneshot;
@@ -46,9 +54,7 @@ edev_oneshot * edev_oneshot_new(edloop * loop, edev_oneshot_cb done)
 		return NULL;
 
 	memset(oneshot, 0, sizeof(*oneshot));
-	edev_source_base_init(&oneshot->source, loop, EDEV_ONESHOT_TYPE, edev_oneshot_finalize);
+	edev_oneshot_init(oneshot, loop, done);
 
-	oneshot->done   = done;
-	oneshot->action = false;
 	return oneshot;
 }

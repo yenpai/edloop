@@ -314,19 +314,27 @@ void edev_hotplug_detach(edev_hotplug * hp)
 	edev_ioevent_detach(&hp->ioevent);
 }
 
+void edev_hotplug_init(edev_hotplug * hp, edloop * loop, edev_hotplug_cb notify)
+{
+	edev_ioevent_init(&hp->ioevent, loop, hotplug_ioevent_handle);
+
+	INIT_LIST_HEAD(&hp->rules);
+	hp->notify = notify;
+	hp->sock   = -1;
+}
+
 edev_hotplug * edev_hotplug_new(edloop * loop, edev_hotplug_cb notify)
 {
 	edev_hotplug * hp;
+
+	if (loop == NULL)
+		return NULL;
 
 	if ((hp = malloc(sizeof(*hp))) == NULL)
 		return NULL;
 
 	memset(hp, 0, sizeof(*hp));
-	edev_ioevent_base_init(&hp->ioevent, loop, hotplug_ioevent_handle);
-
-	hp->sock   = -1;
-	hp->notify = notify;
-	INIT_LIST_HEAD(&hp->rules);
+	edev_hotplug_init(hp, loop, notify);
 
 	return hp;
 }

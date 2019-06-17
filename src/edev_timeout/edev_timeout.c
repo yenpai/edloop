@@ -40,6 +40,15 @@ void edev_timeout_stop(edev_timeout * timeout)
 	edloop_detach(source->loop, source);
 }
 
+void edev_timeout_init(edev_timeout * timeout, edloop * loop, edev_timeout_cb done)
+{
+	edev_source_init(&timeout->source, loop, EDEV_TIMEOUT_TYPE, edev_timeout_finalize);
+
+	timeout->time.tv_sec  = 0;
+	timeout->time.tv_usec = 0;
+	timeout->done = done;
+}
+
 edev_timeout * edev_timeout_new(edloop * loop, edev_timeout_cb done)
 {
 	edev_timeout * timeout;
@@ -50,11 +59,7 @@ edev_timeout * edev_timeout_new(edloop * loop, edev_timeout_cb done)
 		return NULL;
 
 	memset(timeout, 0, sizeof(*timeout));
-	edev_source_base_init(&timeout->source, loop, EDEV_TIMEOUT_TYPE, edev_timeout_finalize);
-
-	timeout->time.tv_sec  = 0;
-	timeout->time.tv_usec = 0;
-	timeout->done = done;
+	edev_timeout_init(timeout, loop, done);
 
 	return timeout;
 }

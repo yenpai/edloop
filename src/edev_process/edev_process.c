@@ -29,6 +29,14 @@ void edev_process_detach(edev_process * process)
 	edloop_detach(source->loop, source);
 }
 
+void edev_process_init(edev_process * process, edloop * loop, edev_process_cb done)
+{
+	edev_source_init(&process->source, loop, EDEV_PROCESS_TYPE, edev_process_finalize);
+
+	process->pid  = 0;
+	process->done = done;
+}
+
 edev_process * edev_process_new(edloop * loop, edev_process_cb done)
 {
 	edev_process * process;
@@ -40,9 +48,7 @@ edev_process * edev_process_new(edloop * loop, edev_process_cb done)
 		return NULL;
 
 	memset(process, 0, sizeof(*process));
-	edev_source_base_init(&process->source, loop, EDEV_PROCESS_TYPE, edev_process_finalize);
+	edev_process_init(process, loop, done);
 
-	process->pid  = 0;
-	process->done = done;
 	return process;
 }

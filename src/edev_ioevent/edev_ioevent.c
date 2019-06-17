@@ -51,9 +51,9 @@ void edev_ioevent_detach(edev_ioevent * io)
 	edloop_detach(source->loop, source);
 }
 
-void edev_ioevent_base_init(edev_ioevent * io, edloop * loop, edev_ioevent_cb handle)
+void edev_ioevent_init(edev_ioevent * io, edloop * loop, edev_ioevent_cb handle)
 {
-	edev_source_base_init(&io->source, loop, EDEV_IOEVENT_TYPE, edev_ioevent_finalize);
+	edev_source_init(&io->source, loop, EDEV_IOEVENT_TYPE, edev_ioevent_finalize);
 
 	io->fd       = -1;
 	io->flags    = 0;
@@ -74,7 +74,7 @@ edev_ioevent * edev_ioevent_new(edloop * loop, edev_ioevent_cb handle)
 		return NULL;
 
 	memset(io, 0, sizeof(*io));
-	edev_ioevent_base_init(io, loop, handle);
+	edev_ioevent_init(io, loop, handle);
 
 	return io;
 } 

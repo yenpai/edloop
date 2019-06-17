@@ -79,20 +79,11 @@ void edev_mqueue_detach(edev_mqueue * mq)
 	edev_oneshot_detach(&mq->oneshot);
 }
 
-edev_mqueue * edev_mqueue_new(edloop * loop, edev_mqueue_cb handle)
+void edev_mqueue_init(edev_mqueue * mq, edloop * loop, edev_mqueue_cb handle)
 {
-	edev_mqueue  * mq;
 	pthread_mutexattr_t attr;
 
-	if (loop == NULL)
-		return NULL;
-
-	if ((mq = malloc(sizeof(*mq))) == NULL)
-		return NULL;
-
-	memset(mq, 0, sizeof(*mq));
-	edev_source_base_init(&mq->oneshot.source, loop, EDEV_ONESHOT_TYPE, edev_mqueue_finalize);
-
+	edev_source_init(&mq->oneshot.source, loop, EDEV_ONESHOT_TYPE, edev_mqueue_finalize);
 	mq->oneshot.done = edev_mqueue_handle;
 
 	pthread_mutexattr_init(&attr);
@@ -102,6 +93,20 @@ edev_mqueue * edev_mqueue_new(edloop * loop, edev_mqueue_cb handle)
 
 	INIT_LIST_HEAD(&mq->queue);
 	mq->handle = handle;
+}
+
+edev_mqueue * edev_mqueue_new(edloop * loop, edev_mqueue_cb handle)
+{
+	edev_mqueue  * mq;
+
+	if (loop == NULL)
+		return NULL;
+
+	if ((mq = malloc(sizeof(*mq))) == NULL)
+		return NULL;
+
+	memset(mq, 0, sizeof(*mq));
+	edev_mqueue_init(mq, loop, handle);
 
 	return mq;
 }
