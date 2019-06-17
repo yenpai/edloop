@@ -2,33 +2,33 @@
 #include "edobject.h"
 #include <limits.h>
 
-void edobject_unref(edobject * o)
+void edobject_unref(edobject * object)
 {
-	if (o->refer_count > 1)
+	if (object->refcount > 1)
 	{
-		o->refer_count--;
+		object->refcount--;
 		return;
 	}
 
-	if (o->finalize_cb)
-		o->finalize_cb(o);
+	if (object->finalize)
+		object->finalize(object);
 
-	free(o);
+	free(object);
 }
 
-edobject * edobject_ref(edobject * o)
+edobject * edobject_ref(edobject * object)
 {
-	if (o->refer_count < UINT_MAX)
+	if (object->refcount < UINT_MAX)
 	{
-		o->refer_count++;
-		return o;
+		object->refcount++;
+		return object;
 	}
 
 	return NULL;
 }
 
-void edobject_base_init(edobject * o, edobject_finalize_cb cb)
+void edobject_init(edobject * object, edobject_finalize_cb finalize)
 {
-	o->refer_count = 1;
-	o->finalize_cb = cb;
+	object->refcount = 1;
+	object->finalize = finalize;
 }

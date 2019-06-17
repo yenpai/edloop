@@ -44,7 +44,7 @@ typedef enum {
 
 struct edev_source {
 	edobject          object;
-	struct list_head  node;
+	struct list_head  entry;
 	bool              attach;
 	bool              reclaim;
 	edloop *          loop;
@@ -55,21 +55,21 @@ struct edev_process {
 	edev_source       source;
 	pid_t             pid;
 	edev_process_cb   done;
-	edcustom_data  cdata;
+	edcustom_data     cdata;
 };
 
 struct edev_oneshot {
 	edev_source       source;
 	bool              action;
 	edev_oneshot_cb   done;
-	edcustom_data  cdata;
+	edcustom_data     cdata;
 };
 
 struct edev_timeout {
 	edev_source       source;
 	struct timeval    time;
 	edev_timeout_cb   done;
-	edcustom_data  cdata;
+	edcustom_data     cdata;
 };
 
 struct edev_ioevent {
@@ -80,7 +80,7 @@ struct edev_ioevent {
 	bool              err;
 	bool              eof;
 	edev_ioevent_cb   handle;
-	edcustom_data  cdata;
+	edcustom_data     cdata;
 };
 
 /*****************************************************************************/

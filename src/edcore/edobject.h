@@ -5,13 +5,13 @@ typedef struct  edobject edobject;
 typedef void (* edobject_finalize_cb) (edobject *);
 
 struct edobject {
-	unsigned int         refer_count;
-	edobject_finalize_cb finalize_cb;
+	unsigned int         refcount;
+	edobject_finalize_cb finalize;
 };
 
 edobject * edobject_ref(edobject *);
-void       edobject_unref(edobject *);
-void       edobject_base_init(edobject *, edobject_finalize_cb);
+void edobject_unref(edobject *);
+void edobject_init(edobject *, edobject_finalize_cb);
 
 #define _EDOBJECT_EXTEND_METHOD_MACRO_(TYPE, NAME) \
 	static inline edobject * NAME##_to_object(TYPE * o) { return (edobject *) o; } \

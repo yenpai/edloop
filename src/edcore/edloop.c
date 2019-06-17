@@ -165,12 +165,12 @@ static void loop_reclaim_add(edev_source * source)
 	if (source->reclaim)
 		return;
 
-	if (!list_empty(&source->node))
-		list_del_init(&source->node);
+	if (!list_empty(&source->entry))
+		list_del_init(&source->entry);
 
 	source->attach  = true;
 	source->reclaim = true;
-	list_add(&source->node, list);
+	list_add(&source->entry, list);
 }
 
 /*****************************************************************************/
@@ -183,8 +183,8 @@ static int loop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
 	if (!source->attach && edev_oneshot_ref(oneshot) == NULL)
 		return -1;
 
-	if (!list_empty(&source->node))
-		list_del_init(&source->node);
+	if (!list_empty(&source->entry))
+		list_del_init(&source->entry);
 
 	if (source->attach == false)
 		LOG_SOURCE_ATTACH(source);
@@ -193,9 +193,9 @@ static int loop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
 	source->reclaim = false;
 
 	if (oneshot->action)
-		list_add(&source->node, list);
+		list_add(&source->entry, list);
 	else
-		list_add_tail(&source->node, list);
+		list_add_tail(&source->entry, list);
 
 	return 0;
 }
@@ -207,7 +207,7 @@ static void loop_oneshot_dispatch(edloop * loop)
 	edev_source  * source, * tmp;
 	edev_oneshot * oneshot;
 
-	list_for_each_entry_safe(source, tmp, list, node)
+	list_for_each_entry_safe(source, tmp, list, entry)
 	{
 		if (loop->cancel)
 			break;
@@ -218,13 +218,13 @@ static void loop_oneshot_dispatch(edloop * loop)
 		if ((oneshot = container_of(source, edev_oneshot, source))->action == false)
 			break;
 
-		list_del_init(&source->node);
-		list_add(&active, &source->node);
+		list_del_init(&source->entry);
+		list_add(&active, &source->entry);
 	}
 
 	while (!list_empty(&active))
 	{
-		source = list_first_entry(&active, edev_source, node);
+		source = list_first_entry(&active, edev_source, entry);
 		oneshot = container_of(source, edev_oneshot, source);
 
 		oneshot->action = false;
@@ -250,14 +250,14 @@ static int loop_process_add(edloop * loop, edev_process * process)
 	if (!source->attach && edev_process_ref(process) == NULL)
 		return -1;
 
-	if (!list_empty(&source->node))
-		list_del_init(&source->node);
+	if (!list_empty(&source->entry))
+		list_del_init(&source->entry);
 
-	list_for_each_entry(tmp, list, source.node)
+	list_for_each_entry(tmp, list, source.entry)
 	{
 		if (tmp->pid > process->pid)
 		{
-			head = &tmp->source.node;
+			head = &tmp->source.entry;
 			break;
 		}
 	}
@@ -267,7 +267,7 @@ static int loop_process_add(edloop * loop, edev_process * process)
 
 	source->attach  = true;
 	source->reclaim = false;
-	list_add_tail(&source->node, head);
+	list_add_tail(&source->entry, head);
 
 	return 0;
 }
@@ -292,7 +292,7 @@ static void loop_process_dispatch(edloop * loop)
 
 		found = NULL;
 
-		list_for_each_entry_safe(source, tmp, list, node)
+		list_for_each_entry_safe(source, tmp, list, entry)
 		{
 			if (loop->cancel)
 				break;
@@ -338,7 +338,7 @@ static void loop_timeout_next_time(edloop * loop, int * timeout_val)
 	}
 
 	edutil_time_curr(&tv);
-	timeout = list_first_entry(list, edev_timeout, source.node);
+	timeout = list_first_entry(list, edev_timeout, source.entry);
 	msec = edutil_time_diff(&timeout->time, &tv);
 	*timeout_val = (msec) < 0 ? 0 : msec ;
 }
@@ -353,14 +353,14 @@ static int loop_timeout_add(edloop * loop, edev_timeout * timeout)
 	if (!source->attach && edev_timeout_ref(timeout) == NULL)
 		return -1;
 
-	if (!list_empty(&source->node))
-		list_del_init(&source->node);
+	if (!list_empty(&source->entry))
+		list_del_init(&source->entry);
 
-	list_for_each_entry(tmp, list, source.node)
+	list_for_each_entry(tmp, list, source.entry)
 	{
 		if (edutil_time_diff(&tmp->time, &timeout->time) > 0)
 		{
-			head = &tmp->source.node;
+			head = &tmp->source.entry;
 			break;
 		}
 	}
@@ -370,7 +370,7 @@ static int loop_timeout_add(edloop * loop, edev_timeout * timeout)
 
 	source->attach  = true;
 	source->reclaim = false;
-	list_add_tail(&source->node, head);
+	list_add_tail(&source->entry, head);
 
 	return 0;
 }
@@ -385,7 +385,7 @@ static void loop_timeout_dispatch(edloop * loop)
 
 	edutil_time_curr(&tv);
 
-	list_for_each_entry_safe(source, tmp, list, node)
+	list_for_each_entry_safe(source, tmp, list, entry)
 	{
 		if (loop->cancel)
 			break;
@@ -398,13 +398,13 @@ static void loop_timeout_dispatch(edloop * loop)
 		if (edutil_time_diff(&timeout->time, &tv) > 0)
 			break;
 
-		list_del_init(&source->node);
-		list_add(&active, &source->node);
+		list_del_init(&source->entry);
+		list_add(&active, &source->entry);
 	}
 
 	while (!list_empty(&active))
 	{
-		source = list_first_entry(&active, edev_source, node);
+		source = list_first_entry(&active, edev_source, entry);
 		timeout = container_of(source, edev_timeout, source);
 
 		loop_reclaim_add(source);
@@ -455,7 +455,7 @@ static int loop_ioevent_add(edloop * loop, edev_ioevent * io)
 
 	source->attach   = true;
 	source->reclaim  = false;
-	list_add_tail(&source->node, &loop->source_list[EDEV_IOEVENT_TYPE]);
+	list_add_tail(&source->entry, &loop->source_list[EDEV_IOEVENT_TYPE]);
 
 	return 0;
 }
@@ -531,8 +531,8 @@ static void loop_source_del(edev_source * source)
 	if (source->type == EDEV_IOEVENT_TYPE)
 		epoll_ctl(loop->epfd, EPOLL_CTL_DEL, ((edev_ioevent *) source)->fd, 0);
 
-	if (!list_empty(&source->node))
-		list_del_init(&source->node);
+	if (!list_empty(&source->entry))
+		list_del_init(&source->entry);
 
 	LOG_SOURCE_RECLAIM(source);
 
@@ -544,7 +544,7 @@ static void loop_source_del(edev_source * source)
 static void loop_source_cleanup(edloop * loop, edev_source_type type)
 {
 	edev_source * source, * tmp;
-	list_for_each_entry_safe(source, tmp, &loop->source_list[type], node)
+	list_for_each_entry_safe(source, tmp, &loop->source_list[type], entry)
 		loop_source_del(source);
 }
 
@@ -733,7 +733,7 @@ edloop * edloop_new(void)
 		return NULL;
 
 	memset(loop, 0, sizeof(*loop));
-	edobject_base_init(&loop->object, edloop_finalize);
+	edobject_init(&loop->object, edloop_finalize);
 
 	if ((loop->epfd = epoll_create1(EPOLL_CLOEXEC)) < 0)
 	{
@@ -770,10 +770,10 @@ edloop * edloop_new(void)
 
 /*****************************************************************************/
 
-void edev_source_base_init(edev_source * source, edloop * loop, edev_source_type type, edobject_finalize_cb cb)
+void edev_source_base_init(edev_source * source, edloop * loop, edev_source_type type, edobject_finalize_cb finalize)
 {
-	edobject_base_init(&source->object, cb);
-	INIT_LIST_HEAD(&source->node);
+	edobject_init(&source->object, finalize);
+	INIT_LIST_HEAD(&source->entry);
 	source->loop    = loop;
 	source->type    = type;
 	source->attach  = false;
