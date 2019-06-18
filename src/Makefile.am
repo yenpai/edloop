@@ -19,3 +19,8 @@ if BUILD_EDEV_HOTPLUG
 SUBDIRS += edev_hotplug
 libedloop_la_LIBADD  += edev_hotplug/libedev_hotplug.la
 endif
+
+if BUILD_EDEV_INOTIFY
+SUBDIRS += edev_inotify
+libedloop_la_LIBADD  += edev_inotify/libedev_inotify.la
+endif

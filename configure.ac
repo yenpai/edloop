@@ -62,6 +62,12 @@ AC_ARG_ENABLE([edev_hotplug], AS_HELP_STRING([--enable-edev-hotplug], [enable ed
 AM_CONDITIONAL([BUILD_EDEV_HOTPLUG], [test "$enable_edev_hotplug" = "yes"])
 AS_IF([test "$enable_edev_hotplug" = "yes"], [AC_DEFINE([HAVE_EDEV_HOTPLUG], [1], [Define to 1 if edev_hotplug support])])
 
+# Checks for edev_inotify support.
+AC_ARG_ENABLE([edev_inotify], AS_HELP_STRING([--enable-edev-inotify], [enable edev_inotify support [default=no]]))
+AM_CONDITIONAL([BUILD_EDEV_INOTIFY], [test "$enable_edev_inotify" = "yes"])
+AS_IF([test "$enable_edev_inotify" = "yes"], [AC_DEFINE([HAVE_EDEV_INOTIFY], [1], [Define to 1 if edev_inotify support])])
+AS_IF([test "$enable_edev_inotify" = "yes"], [AC_CHECK_FUNCS([inotify_init1])])
+
 # Checks for tests build
 AC_ARG_ENABLE([tests_build], AS_HELP_STRING([--enable-tests-build], [build tests applications [default=no]]))
 AM_CONDITIONAL([BUILD_TESTS], [test "$enable_tests_build" = "yes"])
@@ -77,6 +83,7 @@ AC_CONFIG_FILES([src/edev_timeout/Makefile])
 AC_CONFIG_FILES([src/edev_ioevent/Makefile])
 AC_CONFIG_FILES([src/edev_mqueue/Makefile])
 AC_CONFIG_FILES([src/edev_hotplug/Makefile])
+AC_CONFIG_FILES([src/edev_inotify/Makefile])
 AC_CONFIG_FILES([tests/Makefile])
 
 AC_OUTPUT
