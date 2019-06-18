@@ -30,6 +30,7 @@ struct edev_mqueue {
 
 _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_mqueue, edev_mqueue);
 int           edev_mqueue_append(edev_mqueue *, edev_mqueue_tlv *);
+void          edev_mqueue_clean(edev_mqueue *);
 int           edev_mqueue_attach(edev_mqueue *);
 void          edev_mqueue_detach(edev_mqueue *);
 edev_mqueue * edev_mqueue_new(edloop *, edev_mqueue_cb);

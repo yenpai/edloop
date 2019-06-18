@@ -9,10 +9,11 @@ typedef struct {
 static void edev_mqueue_finalize(edobject * obj)
 {
 	edev_mqueue * mq = container_of(obj, edev_mqueue, oneshot.source.object);
-	mqdata * bundle, * tmp;
+	mqdata * bundle;
 
-	list_for_each_entry_safe(bundle, tmp, &mq->queue, node)
+	while (!list_empty(&mq->queue))
 	{
+		bundle = list_first_entry(&mq->queue, mqdata, node);
 		list_del(&bundle->node);
 		free(bundle);
 	}
@@ -67,6 +68,20 @@ int edev_mqueue_append(edev_mqueue * mq, edev_mqueue_tlv * tlv)
 	edev_oneshot_action(&mq->oneshot);
 	edloop_wakeup(edev_mqueue_to_loop(mq));
 	return 0;
+}
+
+void edev_mqueue_clean(edev_mqueue * mq)
+{
+	mqdata * bundle;
+
+	pthread_mutex_lock(&mq->mutex);
+	while (!list_empty(&mq->queue))
+	{
+		bundle = list_first_entry(&mq->queue, mqdata, node);
+		list_del(&bundle->node);
+		free(bundle);
+	}
+	pthread_mutex_unlock(&mq->mutex);
 }
 
 int edev_mqueue_attach(edev_mqueue * mq)
