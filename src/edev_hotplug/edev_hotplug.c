@@ -117,6 +117,12 @@ static const char * netlink_message_parse(const char * buf, size_t len, const ch
 	return NULL;
 }
 
+#define EDEV_HOTPLUG_DEFAULT_UEKEY_MIN EDEV_HOTPLUG_UEKEY_ACTION
+#define EDEV_HOTPLUG_DEFAULT_UEKEY_MAX EDEV_HOTPLUG_UEKEY_PRODUCT
+
+#define EDEV_HOTPLUG_USB_UEKEY_MIN EDEV_HOTPLUG_UEKEY_MAJOR
+#define EDEV_HOTPLUG_USB_UEKEY_MAX EDEV_HOTPLUG_UEKEY_DEVNUM
+
 static int hotplug_netlink_parse(char * buf, ssize_t len, edev_hotplug_info * info)
 {
 	uint8_t key;
