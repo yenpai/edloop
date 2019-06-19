@@ -13,7 +13,7 @@ int edev_timeout_get_remain(edev_timeout * timeout)
 	return (msec < 0) ? 0 : msec ;
 }
 
-int edev_timeout_start(edev_timeout * timeout, int msec)
+int edev_timeout_start(edev_timeout * timeout, unsigned int msec)
 {
 	edev_source * source = edev_timeout_to_source(timeout);
 	edloop * loop = edev_timeout_to_loop(timeout);

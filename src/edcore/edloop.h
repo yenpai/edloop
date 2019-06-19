@@ -136,7 +136,7 @@ edev_oneshot * edev_oneshot_new(edloop *, edev_oneshot_cb);
 
 _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_timeout, edev_timeout);
 int            edev_timeout_get_remain(edev_timeout *);
-int            edev_timeout_start(edev_timeout *, int msec);
+int            edev_timeout_start(edev_timeout *, unsigned int msec);
 void           edev_timeout_stop(edev_timeout *);
 void           edev_timeout_init(edev_timeout *, edloop *, edev_timeout_cb);
 edev_timeout * edev_timeout_new(edloop *, edev_timeout_cb);
@@ -153,7 +153,7 @@ edev_ioevent * edev_ioevent_new(edloop *, edev_ioevent_cb);
 /*****************************************************************************/
 
 void edutil_time_curr(struct timeval * tv);
-void edutil_time_next(struct timeval * tv, int msec);
-int  edutil_time_diff(struct timeval * t1, struct timeval * t2);
+void edutil_time_next(struct timeval * tv, unsigned int msec);
+long edutil_time_diff(struct timeval * t1, struct timeval * t2);
 
 #endif
