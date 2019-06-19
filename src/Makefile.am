@@ -24,3 +24,8 @@ if BUILD_EDEV_INOTIFY
 SUBDIRS += edev_inotify
 libedloop_la_LIBADD  += edev_inotify/libedev_inotify.la
 endif
+
+if BUILD_EDEV_DBUS
+SUBDIRS += edev_dbus
+libedloop_la_LIBADD  += edev_dbus/libedev_dbus.la
+endif

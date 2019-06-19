@@ -68,6 +68,12 @@ AM_CONDITIONAL([BUILD_EDEV_INOTIFY], [test "$enable_edev_inotify" = "yes"])
 AS_IF([test "$enable_edev_inotify" = "yes"], [AC_DEFINE([HAVE_EDEV_INOTIFY], [1], [Define to 1 if edev_inotify support])])
 AS_IF([test "$enable_edev_inotify" = "yes"], [AC_CHECK_FUNCS([inotify_init1])])
 
+# Checks for edev_dbus support.
+AC_ARG_ENABLE([edev_dbus], AS_HELP_STRING([--enable-edev-dbus], [enable edev_dbus support [default=no]]))
+AM_CONDITIONAL([BUILD_EDEV_DBUS], [test "$enable_edev_dbus" = "yes"])
+AS_IF([test "$enable_edev_dbus" = "yes"], [AC_DEFINE([HAVE_EDEV_DBUS], [1], [Define to 1 if edev_dbus support])])
+AS_IF([test "$enable_edev_dbus" = "yes"], [PKG_CHECK_MODULES(DBUS, dbus-1)])
+
 # Checks for tests build
 AC_ARG_ENABLE([tests_build], AS_HELP_STRING([--enable-tests-build], [build tests applications [default=no]]))
 AM_CONDITIONAL([BUILD_TESTS], [test "$enable_tests_build" = "yes"])
@@ -84,6 +90,7 @@ AC_CONFIG_FILES([src/edev_ioevent/Makefile])
 AC_CONFIG_FILES([src/edev_mqueue/Makefile])
 AC_CONFIG_FILES([src/edev_hotplug/Makefile])
 AC_CONFIG_FILES([src/edev_inotify/Makefile])
+AC_CONFIG_FILES([src/edev_dbus/Makefile])
 AC_CONFIG_FILES([tests/Makefile])
 
 AC_OUTPUT

@@ -47,6 +47,7 @@ flags = [
 '-I', '.',
 '-I', './edcore',
 '-isystem', '/usr/include',
+'-isystem', '/usr/include/dbus-1.0',
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
