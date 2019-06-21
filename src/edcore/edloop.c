@@ -13,11 +13,13 @@
 
 #ifdef DEBUG_TRACE_SOURCE_LIVE
 #include <stdio.h>
-#define LOG_SOURCE_ATTACH(O)  do { printf("Source[%p] type[%d] Attached.\n",  O, O->type); } while(0)
-#define LOG_SOURCE_RECLAIM(O) do { printf("Source[%p] type[%d] Reclaimed.\n", O, O->type); } while(0)
+#define LOG_SOURCE_BEFORE_ATTACH(S) \
+	do { if (S->attach == false) { printf("Source[%p] type[%d] Attached.\n",  S, S->type); } } while (0)
+#define LOG_SOURCE_RECLAIM(O) \
+	do { printf("Source[%p] type[%d] Reclaimed.\n", O, O->type); } while(0)
 #else
-#define LOG_SOURCE_ATTACH(O)  do {} while(0)
-#define LOG_SOURCE_RECLAIM(O) do {} while(0)
+#define LOG_SOURCE_BEFORE_ATTACH(S) do {} while(0)
+#define LOG_SOURCE_RECLAIM(O)       do {} while(0)
 #endif
 
 /*****************************************************************************/
@@ -186,9 +188,7 @@ static int loop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
 	if (!list_empty(&source->entry))
 		list_del_init(&source->entry);
 
-	if (source->attach == false)
-		LOG_SOURCE_ATTACH(source);
-
+	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach  = true;
 	source->reclaim = false;
 
@@ -262,9 +262,7 @@ static int loop_process_add(edloop * loop, edev_process * process)
 		}
 	}
 
-	if (source->attach == false)
-		LOG_SOURCE_ATTACH(source);
-
+	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach  = true;
 	source->reclaim = false;
 	list_add_tail(&source->entry, head);
@@ -365,9 +363,7 @@ static int loop_timeout_add(edloop * loop, edev_timeout * timeout)
 		}
 	}
 
-	if (source->attach == false)
-		LOG_SOURCE_ATTACH(source);
-
+	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach  = true;
 	source->reclaim = false;
 	list_add_tail(&source->entry, head);
@@ -416,17 +412,22 @@ static void loop_timeout_dispatch(edloop * loop)
 
 /*****************************************************************************/
 
+static void loop_ioevent_epoll_del(edloop * loop, edev_ioevent * io)
+{
+	if (io->bind)
+	{
+		epoll_ctl(loop->epfd, EPOLL_CTL_DEL, io->fd, 0);
+		io->bind = false;
+	}
+}
+
 static int loop_ioevent_add(edloop * loop, edev_ioevent * io)
 {
 	edev_source * source = edev_ioevent_to_source(io);
 	struct epoll_event event;
 
-	// TODO: How to support modify ?? (attach again)
-	
-	if (loop == NULL || source->attach)
+	if (!source->attach && edev_ioevent_ref(io) == NULL)
 		return -1;
-	if (edev_ioevent_ref(io) == NULL)
-		return -2;
 
 	memset(&event, 0, sizeof(struct epoll_event));
 	event.data.ptr = io;
@@ -440,19 +441,28 @@ static int loop_ioevent_add(edloop * loop, edev_ioevent * io)
 	if (io->flags & EDIO_CLOEXEC)
 		fcntl(io->fd, F_SETFD, fcntl(io->fd, F_GETFD) | FD_CLOEXEC);
 
-	if (epoll_ctl(loop->epfd, EPOLL_CTL_ADD, io->fd, &event) < 0)
+	if (io->bind)
 	{
-		edev_ioevent_unref(io);
-		return -2;
+		if (epoll_ctl(loop->epfd, EPOLL_CTL_MOD, io->fd, &event) < 0)
+		{
+			return -2;
+		}
+	}
+	else
+	{
+		if (epoll_ctl(loop->epfd, EPOLL_CTL_ADD, io->fd, &event) < 0)
+		{
+			edev_ioevent_unref(io);
+			return -2;
+		}
 	}
 
 	io->revents      = 0;
 	io->err          = false;
 	io->eof          = false;
+	io->bind         = true;
 
-	if (source->attach == false)
-		LOG_SOURCE_ATTACH(source);
-
+	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach   = true;
 	source->reclaim  = false;
 	list_add_tail(&source->entry, &loop->source_list[EDEV_IOEVENT_TYPE]);
@@ -506,14 +516,17 @@ static void loop_ioevent_disptach(edloop * loop)
 		if ((io = events[n].data.ptr) == NULL)
 			continue;
 
-		if (io->revents == 0)
+		if (io->fd < 0 || io->revents == 0)
 			continue;
 
 		if ((source = &io->source)->reclaim)
 			continue;
 
 		if (io->err || io->eof)
+		{
+			loop_ioevent_epoll_del(loop, io);
 			loop_reclaim_add(source);
+		}
 
 		if (io->handle)
 			io->handle(io, io->fd, io->revents);
@@ -529,7 +542,7 @@ static void loop_source_del(edev_source * source)
 	edloop * loop = source->loop;
 
 	if (source->type == EDEV_IOEVENT_TYPE)
-		epoll_ctl(loop->epfd, EPOLL_CTL_DEL, ((edev_ioevent *) source)->fd, 0);
+		loop_ioevent_epoll_del(loop, ((edev_ioevent *) source));
 
 	if (!list_empty(&source->entry))
 		list_del_init(&source->entry);
@@ -587,6 +600,8 @@ void edloop_detach(edloop * loop, edev_source * source)
 	edloop_wakeup(loop);
 
 	pthread_mutex_lock(&loop->source_mutex);
+	if (source->type == EDEV_IOEVENT_TYPE)
+		loop_ioevent_epoll_del(loop, ((edev_ioevent *) source));
 	loop_reclaim_add(source);
 	pthread_mutex_unlock(&loop->source_mutex);
 

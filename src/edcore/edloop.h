@@ -77,6 +77,7 @@ struct edev_ioevent {
 	int               fd;
 	unsigned int      flags;
 	unsigned int      revents;
+	bool              bind;
 	bool              err;
 	bool              eof;
 	edev_ioevent_cb   handle;
@@ -147,6 +148,7 @@ _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_ioevent, edev_ioevent);
 int            edev_ioevent_get_unix_fd(edev_ioevent *);
 int            edev_ioevent_attach(edev_ioevent *, int fd, unsigned int flags);
 void           edev_ioevent_detach(edev_ioevent *);
+void           edev_ioevent_close(edev_ioevent *);
 void           edev_ioevent_init(edev_ioevent *, edloop *, edev_ioevent_cb);
 edev_ioevent * edev_ioevent_new(edloop *, edev_ioevent_cb);
 
