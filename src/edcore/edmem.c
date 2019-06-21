@@ -43,7 +43,7 @@ static inline void * edmem_memalign_alloc(size_t align_size, size_t size)
 	return ptr;
 }
 
-static void * edmem_palloc_block(edmem * mb, size_t size)
+static void * edmem_palloc_block(edmem * mb, size_t size, bool align)
 {
 	edmem_sb * new , * small;
 	size_t psize;
@@ -55,7 +55,8 @@ static void * edmem_palloc_block(edmem * mb, size_t size)
 		return NULL;
 
 	ptr = new + sizeof(edmem_sb);
-	ptr = edmem_align_ptr(EDMEM_ALIGN_SIZE, ptr);
+	if (align)
+		ptr = edmem_align_ptr(EDMEM_ALIGN_SIZE, ptr);
 
 	new->next   = NULL;
 	new->ptr    = ptr + size;
@@ -74,14 +75,14 @@ static void * edmem_palloc_block(edmem * mb, size_t size)
 	return ptr;
 }
 
-static void * edmem_palloc_small(edmem * mb, size_t size)
+static void * edmem_palloc_small(edmem * mb, size_t size, bool align)
 {
 	edmem_sb * small;
 	void * ptr;
 
 	for (small = mb->small ; small ; small = small->next)
 	{
-		ptr = edmem_align_ptr(EDMEM_ALIGN_SIZE, small->ptr);
+		ptr = (align) ? edmem_align_ptr(EDMEM_ALIGN_SIZE, small->ptr) : small->ptr;
 
 		if (small->end >= ptr + size)
 		{
@@ -90,7 +91,7 @@ static void * edmem_palloc_small(edmem * mb, size_t size)
 		}
 	}
 
-	return edmem_palloc_block(mb, size);
+	return edmem_palloc_block(mb, size, align);
 }
 
 static void * edmem_palloc_large(edmem * mb, size_t size)
@@ -113,7 +114,7 @@ static void * edmem_palloc_large(edmem * mb, size_t size)
 	}
 
 	/* create new large from small block */
-	if ((large = edmem_palloc_small(mb, sizeof(edmem_lb))) == NULL)
+	if ((large = edmem_palloc_small(mb, sizeof(edmem_lb), true)) == NULL)
 	{
 		free(ptr);
 		return NULL;
@@ -140,7 +141,14 @@ void * edmem_pcalloc(edmem * mb, size_t size)
 void * edmem_pmalloc(edmem * mb, size_t size)
 {
 	return (size <= mb->max) ? 
-		edmem_palloc_small(mb, size) : 
+		edmem_palloc_small(mb, size, true) : 
+		edmem_palloc_large(mb, size) ;
+}
+
+void * edmem_pnalloc(edmem * mb, size_t size)
+{
+	return (size <= mb->max) ? 
+		edmem_palloc_small(mb, size, false) : 
 		edmem_palloc_large(mb, size) ;
 }
 
