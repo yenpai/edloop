@@ -1,9 +1,11 @@
 #ifndef _LINUX_SKBUFF_H_
 #define _LINUX_SKBUFF_H_
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "list.h"
 
 typedef struct {
@@ -48,6 +50,23 @@ static inline uint8_t * skb_put(skbuf * skb, uint32_t len)
 	uint8_t * ptr = skb->tail;
 	skb->tail += len;
 	return ptr;
+}
+
+static uint8_t * skb_put_fmt(skbuf * skb, const char * format, ...)
+{
+	uint8_t * ptr = skb->tail;
+	uint32_t  len = skb_dataroom(skb);
+	va_list aptr;
+	int ret;
+
+	va_start(aptr, format);
+	ret = vsnprintf((char *) ptr, len, format, aptr);
+	va_end(aptr);
+
+	if (ret < 1 || (uint32_t) ret >= len)
+		return NULL;
+
+	return skb_put(skb, ret - 1);
 }
 
 static inline uint8_t * skb_reset(skbuf * skb)
