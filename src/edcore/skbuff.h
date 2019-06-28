@@ -34,6 +34,10 @@ static inline uint32_t skb_dataroom(const skbuf * skb)
 static inline uint8_t * skb_pull(skbuf * skb, uint32_t len)
 {
 	uint8_t * ptr = skb->data;
+
+	if (len > skb_dataroom(skb))
+		return NULL;
+
 	skb->data += len;
 	return ptr;
 }
@@ -41,6 +45,10 @@ static inline uint8_t * skb_pull(skbuf * skb, uint32_t len)
 static inline uint8_t * skb_push(skbuf * skb, uint32_t len)
 {
 	uint8_t * ptr = skb->data;
+
+	if (len > skb_headroom(skb))
+		return NULL;
+
 	skb->data -= len;
 	return ptr;
 }
@@ -48,6 +56,10 @@ static inline uint8_t * skb_push(skbuf * skb, uint32_t len)
 static inline uint8_t * skb_put(skbuf * skb, uint32_t len)
 {
 	uint8_t * ptr = skb->tail;
+	
+	if (len > skb_tailroom(skb))
+		return NULL;
+
 	skb->tail += len;
 	return ptr;
 }
@@ -55,7 +67,7 @@ static inline uint8_t * skb_put(skbuf * skb, uint32_t len)
 static uint8_t * skb_put_fmt(skbuf * skb, const char * format, ...)
 {
 	uint8_t * ptr = skb->tail;
-	uint32_t  len = skb_dataroom(skb);
+	uint32_t  len = skb_tailroom(skb);
 	va_list aptr;
 	int ret;
 
