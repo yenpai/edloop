@@ -31,6 +31,12 @@ static inline uint32_t skb_dataroom(const skbuf * skb)
 	return skb->tail - skb->data;
 }
 
+static inline void skb_reserve(skbuf * skb, int len)
+{
+	skb->data += len;
+	skb->tail += len;
+}
+
 static inline uint8_t * skb_pull(skbuf * skb, uint32_t len)
 {
 	uint8_t * ptr = skb->data;
