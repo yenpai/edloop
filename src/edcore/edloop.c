@@ -18,9 +18,9 @@ struct edloop {
     struct list_head  source_list[EDEV_TYPE_MAX];
 	pthread_mutex_t   source_list_mutex;
 
-	int               access;
-	pthread_mutex_t   access_mutex;
-	pthread_cond_t    access_cond;
+	int               section_access;
+	pthread_mutex_t   section_access_mutex;
+	pthread_cond_t    section_access_cond;
 
     edev_ioevent *    waker;
     int               status;
@@ -574,9 +574,9 @@ static void edloop_finalize(edobject * obj)
 
 void edloop_detach(edloop * loop, edev_source * source)
 {
-	pthread_mutex_lock(&loop->access_mutex);
-	loop->access++;
-	pthread_mutex_unlock(&loop->access_mutex);
+	pthread_mutex_lock(&loop->section_access_mutex);
+	loop->section_access++;
+	pthread_mutex_unlock(&loop->section_access_mutex);
 
 	edloop_wakeup(loop);
 
@@ -586,10 +586,10 @@ void edloop_detach(edloop * loop, edev_source * source)
 	loop_reclaim_add(source);
 	pthread_mutex_unlock(&loop->source_list_mutex);
 
-	pthread_mutex_lock(&loop->access_mutex);
-	if (--loop->access <= 0)
-		pthread_cond_signal(&loop->access_cond);
-	pthread_mutex_unlock(&loop->access_mutex);
+	pthread_mutex_lock(&loop->section_access_mutex);
+	if (--loop->section_access <= 0)
+		pthread_cond_signal(&loop->section_access_cond);
+	pthread_mutex_unlock(&loop->section_access_mutex);
 }
 
 int edloop_attach(edloop * loop, edev_source * source)
@@ -599,9 +599,9 @@ int edloop_attach(edloop * loop, edev_source * source)
 	if (source->loop == NULL)
 		source->loop = loop;
 
-	pthread_mutex_lock(&loop->access_mutex);
-	loop->access++;
-	pthread_mutex_unlock(&loop->access_mutex);
+	pthread_mutex_lock(&loop->section_access_mutex);
+	loop->section_access++;
+	pthread_mutex_unlock(&loop->section_access_mutex);
 
 	edloop_wakeup(loop);
 
@@ -626,10 +626,10 @@ int edloop_attach(edloop * loop, edev_source * source)
 	}
 	pthread_mutex_unlock(&loop->source_list_mutex);
 
-	pthread_mutex_lock(&loop->access_mutex);
-	if (--loop->access <= 0)
-		pthread_cond_signal(&loop->access_cond);
-	pthread_mutex_unlock(&loop->access_mutex);
+	pthread_mutex_lock(&loop->section_access_mutex);
+	if (--loop->section_access <= 0)
+		pthread_cond_signal(&loop->section_access_cond);
+	pthread_mutex_unlock(&loop->section_access_mutex);
 
 	return ret;
 }
@@ -663,14 +663,14 @@ int edloop_loop(edloop * loop)
 	while (!loop->cancel)
 	{
 		/* critical section for other thread access */
-		if (loop->access > 0)
+		if (loop->section_access > 0)
 		{
 			pthread_mutex_unlock(&loop->source_list_mutex);
-			pthread_mutex_lock(&loop->access_mutex);
-			while (loop->access > 0)
-				pthread_cond_wait(&loop->access_cond, &loop->access_mutex);
-			loop->access = 0;
-			pthread_mutex_unlock(&loop->access_mutex);
+			pthread_mutex_lock(&loop->section_access_mutex);
+			while (loop->section_access > 0)
+				pthread_cond_wait(&loop->section_access_cond, &loop->section_access_mutex);
+			loop->section_access = 0;
+			pthread_mutex_unlock(&loop->section_access_mutex);
 			pthread_mutex_lock(&loop->source_list_mutex);
 		}
 
@@ -746,12 +746,12 @@ edloop * edloop_new(void)
 	pthread_mutex_init(&loop->source_list_mutex, &attr);
 	pthread_mutexattr_destroy(&attr);
 
-	loop->access = 0;
+	loop->section_access = 0;
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&loop->access_mutex, &attr);
+	pthread_mutex_init(&loop->section_access_mutex, &attr);
 	pthread_mutexattr_destroy(&attr);
-	pthread_cond_init(&loop->access_cond, NULL);
+	pthread_cond_init(&loop->section_access_cond, NULL);
 
 	if (waker_init(loop) < 0)
 	{
