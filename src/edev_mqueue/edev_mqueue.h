@@ -21,13 +21,6 @@ typedef struct {
 
 typedef void (* edev_mqueue_cb) (edev_mqueue *, edev_mqueue_tlv *);
 
-struct edev_mqueue {
-	edev_oneshot     oneshot;
-	struct list_head queue;
-	edev_mqueue_cb   handle;
-	pthread_mutex_t  mutex;
-};
-
 _EDEV_SOURCE_EXTEND_METHOD_MACRO_(edev_mqueue, edev_mqueue);
 int           edev_mqueue_append(edev_mqueue *, edev_mqueue_tlv *);
 void          edev_mqueue_clean(edev_mqueue *);

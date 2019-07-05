@@ -1,6 +1,13 @@
 #include <errno.h>
 #include "edev_mqueue.h"
 
+struct edev_mqueue {
+	edev_oneshot     oneshot;
+	struct list_head queue;
+	edev_mqueue_cb   handle;
+	pthread_mutex_t  mutex;
+};
+
 typedef struct {
 	struct list_head node;
 	edev_mqueue_tlv  tlv;
