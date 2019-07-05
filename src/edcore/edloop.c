@@ -11,25 +11,12 @@
 
 /*****************************************************************************/
 
-#ifdef DEBUG_TRACE_SOURCE_LIVE
-#include <stdio.h>
-#define LOG_SOURCE_BEFORE_ATTACH(S) \
-	do { if (S->attach == false) { printf("Source[%p] type[%d] Attached.\n",  S, S->type); } } while (0)
-#define LOG_SOURCE_RECLAIM(O) \
-	do { printf("Source[%p] type[%d] Reclaimed.\n", O, O->type); } while(0)
-#else
-#define LOG_SOURCE_BEFORE_ATTACH(S) do {} while(0)
-#define LOG_SOURCE_RECLAIM(O)       do {} while(0)
-#endif
-
-/*****************************************************************************/
-
 struct edloop {
 	edobject          object;
     int               epfd;
 
     struct list_head  source_list[EDEV_TYPE_MAX];
-	pthread_mutex_t   source_mutex;
+	pthread_mutex_t   source_list_mutex;
 
 	int               access;
 	pthread_mutex_t   access_mutex;
@@ -188,7 +175,6 @@ static int loop_oneshot_add(edloop * loop, edev_oneshot * oneshot)
 	if (!list_empty(&source->entry))
 		list_del_init(&source->entry);
 
-	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach  = true;
 	source->reclaim = false;
 
@@ -262,7 +248,6 @@ static int loop_process_add(edloop * loop, edev_process * process)
 		}
 	}
 
-	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach  = true;
 	source->reclaim = false;
 	list_add_tail(&source->entry, head);
@@ -363,7 +348,6 @@ static int loop_timeout_add(edloop * loop, edev_timeout * timeout)
 		}
 	}
 
-	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach  = true;
 	source->reclaim = false;
 	list_add_tail(&source->entry, head);
@@ -462,7 +446,6 @@ static int loop_ioevent_add(edloop * loop, edev_ioevent * io)
 	io->eof          = false;
 	io->bind         = true;
 
-	LOG_SOURCE_BEFORE_ATTACH(source);
 	source->attach   = true;
 	source->reclaim  = false;
 	list_add_tail(&source->entry, &loop->source_list[EDEV_IOEVENT_TYPE]);
@@ -547,8 +530,6 @@ static void loop_source_del(edev_source * source)
 	if (!list_empty(&source->entry))
 		list_del_init(&source->entry);
 
-	LOG_SOURCE_RECLAIM(source);
-
 	source->reclaim = true;
 	source->attach  = false;
 	edev_source_unref(source);
@@ -599,11 +580,11 @@ void edloop_detach(edloop * loop, edev_source * source)
 
 	edloop_wakeup(loop);
 
-	pthread_mutex_lock(&loop->source_mutex);
+	pthread_mutex_lock(&loop->source_list_mutex);
 	if (source->type == EDEV_IOEVENT_TYPE)
 		loop_ioevent_epoll_del(loop, ((edev_ioevent *) source));
 	loop_reclaim_add(source);
-	pthread_mutex_unlock(&loop->source_mutex);
+	pthread_mutex_unlock(&loop->source_list_mutex);
 
 	pthread_mutex_lock(&loop->access_mutex);
 	if (--loop->access <= 0)
@@ -624,7 +605,7 @@ int edloop_attach(edloop * loop, edev_source * source)
 
 	edloop_wakeup(loop);
 
-	pthread_mutex_lock(&loop->source_mutex);
+	pthread_mutex_lock(&loop->source_list_mutex);
 	switch (source->type)
 	{
 		case EDEV_PROCESS_TYPE:
@@ -643,7 +624,7 @@ int edloop_attach(edloop * loop, edev_source * source)
 			ret = -1;
 			break;
 	}
-	pthread_mutex_unlock(&loop->source_mutex);
+	pthread_mutex_unlock(&loop->source_list_mutex);
 
 	pthread_mutex_lock(&loop->access_mutex);
 	if (--loop->access <= 0)
@@ -677,20 +658,20 @@ int edloop_loop(edloop * loop)
 	loop->cancel = false;
 	loop->status++;
 
-	pthread_mutex_lock(&loop->source_mutex);
+	pthread_mutex_lock(&loop->source_list_mutex);
 
 	while (!loop->cancel)
 	{
 		/* critical section for other thread access */
 		if (loop->access > 0)
 		{
-			pthread_mutex_unlock(&loop->source_mutex);
+			pthread_mutex_unlock(&loop->source_list_mutex);
 			pthread_mutex_lock(&loop->access_mutex);
 			while (loop->access > 0)
 				pthread_cond_wait(&loop->access_cond, &loop->access_mutex);
 			loop->access = 0;
 			pthread_mutex_unlock(&loop->access_mutex);
-			pthread_mutex_lock(&loop->source_mutex);
+			pthread_mutex_lock(&loop->source_list_mutex);
 		}
 
 		/* reclaim */
@@ -714,7 +695,7 @@ int edloop_loop(edloop * loop)
 			loop_ioevent_disptach(loop);
 	}
 
-	pthread_mutex_unlock(&loop->source_mutex);
+	pthread_mutex_unlock(&loop->source_list_mutex);
 
 	if (--loop->status > 0)
 		edloop_wakeup(loop);
@@ -762,7 +743,7 @@ edloop * edloop_new(void)
 
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&loop->source_mutex, &attr);
+	pthread_mutex_init(&loop->source_list_mutex, &attr);
 	pthread_mutexattr_destroy(&attr);
 
 	loop->access = 0;
