@@ -204,8 +204,7 @@ static void loop_oneshot_dispatch(edloop * loop)
 		if ((oneshot = container_of(source, edev_oneshot, source))->action == false)
 			break;
 
-		list_del_init(&source->entry);
-		list_add(&active, &source->entry);
+		list_move_tail(&source->entry, &active);
 	}
 
 	while (!list_empty(&active))
@@ -378,8 +377,7 @@ static void loop_timeout_dispatch(edloop * loop)
 		if (edutil_time_diff(&timeout->time, &tv) > 0)
 			break;
 
-		list_del_init(&source->entry);
-		list_add(&active, &source->entry);
+		list_move_tail(&source->entry, &active);
 	}
 
 	while (!list_empty(&active))
